@@ -69,7 +69,6 @@ class AsyncAPIRouter(APIRouter):
         errors: bool = True,
         expandMessageExamples: bool = True,
     ) -> HTMLResponse:
-        """Serve the AsyncAPI schema as an HTML response."""
         return HTMLResponse(
             content=get_asyncapi_html(
                 self._schema.to_specification(),
@@ -89,7 +88,6 @@ class AsyncAPIRouter(APIRouter):
         if self._try_processor is None:
             return JSONResponse({"details": "Try process unavailable"}, 400)
 
-        """Publish a message coming from the AsyncAPI try-it-out plugin."""
         try:
             body = await request.json()
         except Exception as e:

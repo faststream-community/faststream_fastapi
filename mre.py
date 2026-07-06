@@ -1,24 +1,34 @@
 from contextlib import asynccontextmanager
+from typing import Annotated
 
+from pydantic import BaseModel
 import uvicorn
-from fastapi import Depends, FastAPI, Request
+from fastapi import Body, Depends, FastAPI, Header, Path, Request
+# from faststream import Path
 from faststream.nats import NatsBroker
 
 from faststream_fastapi.faststream_api import FastStreamApi
 
 broker = NatsBroker()
 
-@broker.subscriber("broker")
+class BodyModel(BaseModel):
+    field: int
+
+class Dep: ...
+
+@broker.subscriber("subject.{num}")
 async def handler1(
     request: Request,
-    dep: int = Depends(lambda: 1)
-):
-    print("BROKER", dep, request.state.data)
+    num: Annotated[int, Depends(Dep)],
+    body: Annotated[BodyModel, Body()],
+    x_user_id: Annotated[int, Header()],
+) -> None:
+    print(num)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await broker.publish(None, "broker")
+    await broker.publish({"field": 12}, "subject.2", headers={"x-user-id": "123456"},)
     yield {"data": "LIFESPAN DATA"}
 
 

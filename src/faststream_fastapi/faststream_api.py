@@ -11,6 +11,7 @@ from faststream._internal.context import ContextRepo
 from faststream._internal.di import FastDependsConfig
 from faststream.message import StreamMessage
 from faststream.middlewares import BaseMiddleware
+from faststream.specification.base import SpecificationFactory
 from starlette.types import Lifespan, Receive, Scope, Send
 
 from faststream_fastapi._internal.asyncapi_router import AsyncAPIRouter
@@ -46,34 +47,48 @@ class FastStreamApi:
         brokers: Sequence[BrokerUsecase[Any, Any]],
         context: ContextRepo | None = None,
         dependency_overrides_provider: Any | None = None,
+        # AsyncAPI
+        include_in_schema: bool = True,
+        schema_url: str = "/asyncapi",
+        specification: SpecificationFactory | None = None,
     ) -> None:
         self._application = application
+        self._application.router.lifespan_context = self._wrap_lifespan(
+            self._application.router.lifespan_context,
+        )
+
         self._brokers = brokers
 
-        self._setup_brokers()
-
-        startable_application = StartAbleApplication(
+        self._startable_application = StartAbleApplication(
             *brokers,
+            specification=specification,
             config=FastDependsConfig(
                 get_dependent=get_fastapi_dependant,
                 context=context or ContextRepo(),
             ),
         )
-        self._startable_application = startable_application
-
-        asyncapi_router = AsyncAPIRouter(
-            brokers=brokers,
-            schema=self._startable_application.schema,
-        )
-        self._application.include_router(asyncapi_router)
-        self._application.router.lifespan_context = self._wrap_lifespan(
-            self._application.router.lifespan_context,
-        )
-
-        self.config = Config(
+        self._config = Config(
             application=application,
             dependency_overrides_provider=dependency_overrides_provider,
         )
+
+        self._setup_brokers()
+        self._setup_asyncapi(schema_url, include_in_schema)
+
+    def _setup_asyncapi(
+        self,
+        schema_url: str,
+        include_in_schema: bool,
+    ) -> None:
+        if not include_in_schema:
+            return
+
+        asyncapi_router = AsyncAPIRouter(
+            brokers=self._brokers,
+            schema_url=schema_url,
+            schema=self._startable_application.schema,
+        )
+        self._application.include_router(asyncapi_router)
 
     def _wrap_lifespan(
         self,
@@ -108,15 +123,14 @@ class FastStreamApi:
         self,
         endpoint: Callable[..., Any],
     ) -> Callable[["StreamMessage[Any]"], Awaitable[Any]]:
-        """Patch user function to make it FastAPI-compatible."""
         return wrap_callable_to_fastapi_compatible(
             user_callable=endpoint,
             context=self._startable_application.context,
-            config=self.config,
+            config=self._config,
         )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
-            self.config.set_asgi_state(scope["state"])
+            self._config.set_asgi_state(scope["state"])
 
         return await self._application(scope, receive, send)
