@@ -2,28 +2,39 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from pydantic import BaseModel
+from fastapi import APIRouter, Body, Depends, FastAPI, Header, Request, BackgroundTasks
+from faststream.nats import NatsBroker, NatsRouter
 import uvicorn
-from fastapi import Body, Depends, FastAPI, Header, Path, Request
-# from faststream import Path
-from faststream.nats import NatsBroker
 
-from faststream_fastapi.faststream_api import FastStreamApi
+from faststream_fastapi import Context, AsyncAPIRouter, FastStreamApi
 
-broker = NatsBroker()
 
 class BodyModel(BaseModel):
     field: int
 
+
 class Dep: ...
 
-@broker.subscriber("subject.{num}")
+sub_router = NatsRouter()
+@sub_router.subscriber("subject.{num}")
 async def handler1(
     request: Request,
-    num: Annotated[int, Depends(Dep)],
+    tasks: BackgroundTasks,
+    num: Annotated[int, Depends(lambda: Dep())],
     body: Annotated[BodyModel, Body()],
     x_user_id: Annotated[int, Header()],
+    fastapi_app: Annotated[FastAPI, Context("fastapi_app")]
 ) -> None:
-    print(num)
+    print(23)
+    print(num, tasks)
+    print(23)
+    
+
+
+api_router = APIRouter()
+@api_router.get("/")
+async def handler() -> None:
+    ...
 
 
 @asynccontextmanager
@@ -33,5 +44,18 @@ async def lifespan(app: FastAPI):
 
 
 fastapi_app = FastAPI(lifespan=lifespan)
-app = FastStreamApi(fastapi_app, [broker])
+fastapi_app.openapi
+fastapi_app.include_router(api_router)
+
+broker = NatsBroker()
+broker.include_router(sub_router)
+
+app = FastStreamApi(
+    fastapi_app,
+    [broker],
+    asyncapi_path=AsyncAPIRouter(
+        "/fs_docs",
+        include_in_schema=True,
+    )
+)
 uvicorn.run(app)

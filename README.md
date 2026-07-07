@@ -11,11 +11,12 @@ async def subscriber(
     num: Annotated[int, Path()],
     body: Annotated[BodyModel, Body()],
     x_user_id: Annotated[int, Header()],
-    my_dep: Annotated[int, Depends(int)]
+    my_dep: Annotated[int, Depends(int)],
+    fastapi_app: Annotated[FastAPI, Context("fastapi_app")],
 ) -> None:
     ...
 ```
-В подписчиках можно использовать `fastapi.Request`, `fastapi.Path`, `fastapi.Body`, `fastapi.Header` и `fastapi.Depends`.
+В подписчиках можно использовать `fastapi.Request`, `fastapi.Path`, `fastapi.Body`, `fastapi.Header`, `fastapi.Depends` и `faststream_fastapi.Context`
 
 ## Lifespan
 1. На момент запуска lifespan брокеры будут запущены.
@@ -36,31 +37,44 @@ async def subscriber(request: Request):
 
 ## Dependency overrides
 ```py
-class DependencyOverridesProvider:
-    dependency_overrides = {
-        Dep: lambda: "Dep",
-    }
+fastapi = FastAPI()
+fastapi.dependency_overrides[Dep] = lambda: "Dep"
 
 app = FastStreamApi(
-    FastAPI(),
+    fastapi,
     [NatsBroker()],
-    dependency_overrides_provider=DependencyOverridesProvider,
 )
 ```
 
 ## AsyncAPI
-Настройка AsyncAPI происходит следующим образом
+Для настройки AsyncAPI можно использовать `SpecificationsFactory` из самого faststream, а так же `faststream_fastapi.AsyncAPIRouter`
 ```py
 FastStreamApi(
     ...,
-    include_in_schema=True,
-    schema_url="...",
     specification=AsyncAPI(
         title="My app",
         version="1.0.0",
         description="...",
         ...,
-    )
+    ),
+    asyncapi_path="/fs_docs",
+    # or
+    asyncapi_path=AsyncAPIRouter(
+        "/fs_docs",
+        description="...",
+        ...
+    ),
 )
+```
 
-Все фишки из FastStream AsyncAPI доступны и в плагине
+## Background tasks
+
+```py
+@broker.subscriber("subject")
+async def handler1(
+    tasks: BackgroundTasks,
+) -> None:
+    tasks.add_task(...)
+```
+Таски выполняются после исполнения хендлера в мидлевари
+
