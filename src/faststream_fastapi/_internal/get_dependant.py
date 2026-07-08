@@ -11,8 +11,9 @@ from fastapi.dependencies.utils import (
     get_typed_signature,
 )
 from fastapi.params import Depends
-from faststream._internal._compat import PYDANTIC_V2, PydanticUndefined
 from pydantic import Field, create_model
+
+from faststream_fastapi._internal.fs_re_exports._compat import PYDANTIC_V2, PydanticUndefined
 
 
 def get_fastapi_dependant(
@@ -92,9 +93,7 @@ def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
                 )
 
             else:
-                from pydantic.fields import (
-                    ModelField,  # type: ignore[attr-defined]
-                )
+                from pydantic.fields import ModelField  # type: ignore[attr-defined]
 
                 info = cast("ModelField", info)
 

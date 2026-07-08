@@ -4,13 +4,11 @@ from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from functools import wraps
 from itertools import dropwhile
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 from fast_depends.dependencies import Dependant
 from fastapi.dependencies.models import Dependant as FastAPIDependant
 from fastapi.routing import run_endpoint_function, serialize_response
-from faststream._internal.context import Context, ContextRepo
-from faststream._internal.types import P_HandlerParams, T_HandlerReturn
 from faststream.exceptions import SetupError
 from faststream.message import StreamMessage as NativeMessage
 from faststream.response import Response, ensure_response
@@ -22,13 +20,17 @@ from faststream_fastapi._internal.fastapi_compat import (
     raise_fastapi_validation_error,
     solve_faststream_dependency,
 )
+from faststream_fastapi._internal.fs_re_exports.context import Context, ContextRepo
 from faststream_fastapi._internal.get_dependant import (
     get_fastapi_native_dependant,
     has_forbidden_types,
     is_faststream_decorated,
     mark_faststream_decorated,
 )
-from faststream_fastapi.stream_message import StreamMessage
+from faststream_fastapi._internal.stream_message import StreamMessage
+
+P_HandlerParams = ParamSpec("P_HandlerParams")
+T_HandlerReturn = TypeVar("T_HandlerReturn")
 
 
 def wrap_callable_to_fastapi_compatible(

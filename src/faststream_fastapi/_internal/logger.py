@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from faststream._internal.logger.logging import get_logger
+from faststream_fastapi._internal.fs_re_exports.logger import get_logger
 
 logger = get_logger(
     name="faststream_fastapi",

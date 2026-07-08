@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.datastructures import State
 
 
-class ConfigAsgiStateError(Exception):
+class ConfigAsgiStateError(ValueError):
     def __str__(self) -> str:
         return "ASGI state already is set"
 

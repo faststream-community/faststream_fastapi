@@ -3,9 +3,14 @@ from collections.abc import Callable
 from typing import Annotated, Any
 
 from fastapi import params
-from faststream._internal.constants import EMPTY
-from faststream._internal.context import ContextRepo
-from faststream._internal.context.resolve import resolve_context_by_name
+
+from faststream_fastapi._internal.fs_re_exports.constants import EMPTY
+from faststream_fastapi._internal.fs_re_exports.context import (
+    ContextRepo as FSContextRepo,
+)
+from faststream_fastapi._internal.fs_re_exports.context import (
+    resolve_context_by_name,
+)
 
 
 def Context(  # noqa: N802
@@ -31,4 +36,4 @@ def Context(  # noqa: N802
 
 
 Logger = Annotated[logging.Logger, Context("logger")]
-ContextRepo = Annotated[ContextRepo, Context("context")]
+ContextRepo = Annotated[FSContextRepo, Context("context")]

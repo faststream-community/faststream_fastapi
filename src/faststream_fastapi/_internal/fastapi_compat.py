@@ -100,7 +100,7 @@ if FASTAPI_v102_3:
     ) -> SolvedDependency:
         solved_result = await solve_dependencies(
             request=request,
-            body=request._body,  # type: ignore[arg-type]
+            body=request._body,
             dependant=dependant,
             dependency_overrides_provider=dependency_overrides_provider,
             **extra,  # type: ignore[arg-type]
@@ -131,7 +131,7 @@ else:
     ) -> SolvedDependency:
         solved_result = await solve_dependencies(
             request=request,
-            body=request._body,  # type: ignore[arg-type]
+            body=request._body,
             dependant=dependant,
             dependency_overrides_provider=dependency_overrides_provider,
             **kwargs,

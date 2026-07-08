@@ -1,10 +1,9 @@
-from typing import Any, Generic
+from typing import Any
 
 from fastapi import Request
-from faststream._internal.types import MsgType
 
 
-class StreamMessage(Request, Generic[MsgType]):
+class StreamMessage(Request):
     scope: dict[str, Any]
     _cookies: dict[str, Any]
     _headers: dict[str, Any]  # type: ignore[assignment]

@@ -5,21 +5,22 @@ from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.background import BackgroundTasks
-from faststream._internal.application import StartAbleApplication
-from faststream._internal.broker import BrokerUsecase
-from faststream._internal.context import ContextRepo
-from faststream._internal.di import FastDependsConfig
 from faststream.message import StreamMessage
 from faststream.middlewares import BaseMiddleware
 from faststream.specification.base import SpecificationFactory
 from starlette.types import Lifespan, Receive, Scope, Send
 
+from faststream_fastapi._internal.asyncapi_router import AsyncAPIRouter
 from faststream_fastapi._internal.config import Config
+from faststream_fastapi._internal.fs_re_exports.application import StartAbleApplication
+from faststream_fastapi._internal.fs_re_exports.broker import BrokerUsecase
+from faststream_fastapi._internal.fs_re_exports.context import ContextRepo
+from faststream_fastapi._internal.fs_re_exports.di import FastDependsConfig
 from faststream_fastapi._internal.get_dependant import get_fastapi_dependant
 from faststream_fastapi._internal.wrap_callable_to_fastapi_compatible import (
     wrap_callable_to_fastapi_compatible,
 )
-from faststream_fastapi.asyncapi_router import AsyncAPIRouter
+from faststream_fastapi.asyncapi_config import AsyncAPIConfig
 
 
 class _BackgroundMiddleware(BaseMiddleware):
@@ -40,6 +41,22 @@ class _BackgroundMiddleware(BaseMiddleware):
         return await super().after_processed(exc_type, exc_val, exc_tb)
 
 
+def _subscriber_compatibility_wrapper(
+    config: Config,
+    context: ContextRepo,
+) -> Callable[[Callable[..., Any]], Callable[["StreamMessage[Any]"], Awaitable[Any]]]:
+    def subscriber_compatibility_wrapper(
+        endpoint: Callable[..., Any],
+    ) -> Callable[["StreamMessage[Any]"], Awaitable[Any]]:
+        return wrap_callable_to_fastapi_compatible(
+            user_callable=endpoint,
+            config=config,
+            context=context,
+        )
+
+    return subscriber_compatibility_wrapper
+
+
 class FastStreamApi:
     def __init__(
         self,
@@ -48,7 +65,7 @@ class FastStreamApi:
         context: ContextRepo | None = None,
         # AsyncAPI
         specification: SpecificationFactory | None = None,
-        asyncapi_path: str | AsyncAPIRouter | None = None,
+        asyncapi_path: str | AsyncAPIConfig | None = None,
     ) -> None:
         self._application = application
         self._application.router.lifespan_context = self._wrap_lifespan(
@@ -72,17 +89,26 @@ class FastStreamApi:
 
         if asyncapi_path is not None:
             if isinstance(asyncapi_path, str):
-                asyncapi_router = AsyncAPIRouter(asyncapi_path)
+                asyncapi_config = AsyncAPIConfig(asyncapi_path)
             else:
-                asyncapi_router = asyncapi_path
+                asyncapi_config = asyncapi_path
 
-            self._application.include_router(asyncapi_router)
         else:
-            asyncapi_router = None
+            asyncapi_config = None
 
-        self._asyncapi_router = asyncapi_router
+        self._asyncapi_config = asyncapi_config
 
-        self._setup_brokers()
+        for broker in self._brokers:
+            broker.config.add_middleware(_BackgroundMiddleware)
+
+            for subscriber in broker.subscribers:
+                subscriber._call_decorators = (
+                    _subscriber_compatibility_wrapper(
+                        config=self._config,
+                        context=self._startable_application.context,
+                    ),
+                    *subscriber._call_decorators,
+                )
 
     def _wrap_lifespan(
         self,
@@ -90,8 +116,13 @@ class FastStreamApi:
     ) -> Callable[[Any], AbstractAsyncContextManager[Any, Any]]:
         @asynccontextmanager
         async def wrapped(app: Any) -> AsyncIterator[Any]:
-            if self._asyncapi_router is not None:
-                self._asyncapi_router._setup(self._brokers, self._startable_application.schema)
+            if self._asyncapi_config is not None:
+                asyncapi_router = AsyncAPIRouter(
+                    brokers=self._brokers,
+                    config=self._asyncapi_config,
+                    schema=self._startable_application.schema,
+                )
+                self._application.include_router(asyncapi_router)
 
             for broker in self._brokers:
                 await broker.start()
@@ -105,26 +136,6 @@ class FastStreamApi:
                 await broker.stop()
 
         return wrapped
-
-    def _setup_brokers(self) -> None:
-        for broker in self._brokers:
-            broker.config.add_middleware(_BackgroundMiddleware)
-
-            for subscriber in broker.subscribers:
-                subscriber._call_decorators = (
-                    self._subscriber_compatibility_wrapper,
-                    *subscriber._call_decorators,
-                )
-
-    def _subscriber_compatibility_wrapper(
-        self,
-        endpoint: Callable[..., Any],
-    ) -> Callable[["StreamMessage[Any]"], Awaitable[Any]]:
-        return wrap_callable_to_fastapi_compatible(
-            user_callable=endpoint,
-            context=self._startable_application.context,
-            config=self._config,
-        )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
