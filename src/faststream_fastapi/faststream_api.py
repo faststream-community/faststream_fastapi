@@ -82,6 +82,9 @@ class FastStreamApi:
                 context=context or ContextRepo(),
             ),
         )
+        for broker in self._brokers:
+            self._startable_application.add_broker(broker)
+
         self._config = Config(
             application=application,
             dependency_overrides_provider=self._application,
@@ -126,8 +129,6 @@ class FastStreamApi:
 
             for broker in self._brokers:
                 await broker.start()
-
-            self._startable_application.context.set_global("fastapi_app", app)
 
             async with lifespan_context(app) as lifespan_context_result:
                 yield lifespan_context_result

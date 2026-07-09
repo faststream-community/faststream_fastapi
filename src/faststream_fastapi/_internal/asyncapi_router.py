@@ -97,12 +97,9 @@ class AsyncAPIRouter(APIRouter):
 
     def make_try_asyncapi_schema(
         self,
-        try_processor: TryItOutProcessor | None,
+        try_processor: TryItOutProcessor,
     ) -> Callable[[Request], Awaitable[Response]]:
         async def try_asyncapi_schema(request: Request) -> Response:
-            if try_processor is None:
-                return JSONResponse({"details": "Try process unavailable"}, 400)
-
             try:
                 body = await request.json()
             except Exception as e:
