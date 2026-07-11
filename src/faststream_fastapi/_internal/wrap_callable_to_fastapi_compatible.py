@@ -1,6 +1,6 @@
 import asyncio
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from contextlib import AsyncExitStack
 from functools import wraps
 from itertools import dropwhile
@@ -8,6 +8,7 @@ from typing import Any, ParamSpec, TypeVar
 
 from fast_depends.dependencies import Dependant
 from fastapi.dependencies.models import Dependant as FastAPIDependant
+from fastapi.params import Depends
 from fastapi.routing import run_endpoint_function, serialize_response
 from faststream.exceptions import SetupError
 from faststream.message import StreamMessage as NativeMessage
@@ -27,7 +28,7 @@ from faststream_fastapi._internal.get_dependant import (
     is_faststream_decorated,
     mark_faststream_decorated,
 )
-from faststream_fastapi._internal.stream_message import StreamMessage
+from faststream_fastapi.stream_message import StreamMessage
 
 P_HandlerParams = ParamSpec("P_HandlerParams")
 T_HandlerReturn = TypeVar("T_HandlerReturn")
@@ -38,6 +39,7 @@ def wrap_callable_to_fastapi_compatible(
     *,
     config: Config,
     context: ContextRepo,
+    dependencies: Iterable[Depends],
 ) -> Callable[[NativeMessage[Any]], Awaitable[Any]]:
     if has_forbidden_types(user_callable, (Dependant,)):
         msg = (
@@ -57,7 +59,7 @@ def wrap_callable_to_fastapi_compatible(
         return user_callable  # type: ignore[return-value]
 
     parsed_callable = build_faststream_to_fastapi_parser(
-        dependent=get_fastapi_native_dependant(user_callable, ()),
+        dependent=get_fastapi_native_dependant(user_callable, dependencies),
         config=config,
         context=context,
     )
@@ -72,8 +74,8 @@ def build_faststream_to_fastapi_parser(
     config: Config,
     context: ContextRepo,
 ) -> Callable[[NativeMessage[Any]], Awaitable[Any]]:
-    if dependent.call is None:
-        raise ValueError("dependent.call is None")
+    if dependent.call is None:  # pragma: no cover
+        raise ValueError("dependent.call is None")  # noqa: TRY003
 
     consume = make_fastapi_execution(
         dependent=dependent,
@@ -145,7 +147,7 @@ def make_fastapi_execution(
             if FASTAPI_V106:
                 kwargs = {"async_exit_stack": stack}
 
-            else:
+            else:  # pragma: no cover
                 request.scope["fastapi_astack"] = stack
 
             request.scope["app"] = config.application
@@ -178,7 +180,6 @@ def make_fastapi_execution(
 
             return response
 
-        msg = "unreachable"
-        raise AssertionError(msg)
+        raise AssertionError("unreachable")
 
     return app

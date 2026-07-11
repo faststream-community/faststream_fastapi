@@ -4,12 +4,14 @@ from faststream_fastapi.context import (
     ContextRepo,
     Logger,
 )
-from faststream_fastapi.faststream_api import FastStreamApi
+from faststream_fastapi.faststream_api import FastStreamAPI
+from faststream_fastapi.stream_message import StreamMessage
 
 __all__ = (
     "AsyncAPIConfig",
     "Context",
     "ContextRepo",
-    "FastStreamApi",
+    "FastStreamAPI",
     "Logger",
+    "StreamMessage",
 )

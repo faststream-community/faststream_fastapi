@@ -40,7 +40,7 @@ async def subscriber(request: Request):
 fastapi = FastAPI()
 fastapi.dependency_overrides[Dep] = lambda: "Dep"
 
-app = FastStreamApi(
+app = FastStreamAPI(
     fastapi,
     [NatsBroker()],
 )
@@ -49,7 +49,7 @@ app = FastStreamApi(
 ## AsyncAPI
 Для настройки AsyncAPI можно использовать `SpecificationsFactory` из самого faststream, а так же `faststream_fastapi.AsyncAPIRouter`
 ```py
-FastStreamApi(
+FastStreamAPI(
     ...,
     specification=AsyncAPI(
         title="My app",

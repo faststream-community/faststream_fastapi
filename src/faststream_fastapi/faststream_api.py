@@ -1,10 +1,11 @@
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from types import TracebackType
 from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.background import BackgroundTasks
+from fastapi.params import Depends
 from faststream.message import StreamMessage
 from faststream.middlewares import BaseMiddleware
 from faststream.specification.base import SpecificationFactory
@@ -44,6 +45,7 @@ class _BackgroundMiddleware(BaseMiddleware):
 def _subscriber_compatibility_wrapper(
     config: Config,
     context: ContextRepo,
+    dependencies: Iterable[Depends],
 ) -> Callable[[Callable[..., Any]], Callable[["StreamMessage[Any]"], Awaitable[Any]]]:
     def subscriber_compatibility_wrapper(
         endpoint: Callable[..., Any],
@@ -52,16 +54,17 @@ def _subscriber_compatibility_wrapper(
             user_callable=endpoint,
             config=config,
             context=context,
+            dependencies=dependencies,
         )
 
     return subscriber_compatibility_wrapper
 
 
-class FastStreamApi:
+class FastStreamAPI:
     def __init__(
         self,
+        *brokers: BrokerUsecase[Any, Any],
         application: FastAPI,
-        brokers: Sequence[BrokerUsecase[Any, Any]],
         context: ContextRepo | None = None,
         # AsyncAPI
         specification: SpecificationFactory | None = None,
@@ -82,8 +85,6 @@ class FastStreamApi:
                 context=context or ContextRepo(),
             ),
         )
-        for broker in self._brokers:
-            self._startable_application.add_broker(broker)
 
         self._config = Config(
             application=application,
@@ -105,10 +106,15 @@ class FastStreamApi:
             broker.config.add_middleware(_BackgroundMiddleware)
 
             for subscriber in broker.subscribers:
+                dependencies = (
+                    *broker.config.broker_dependencies,
+                    *subscriber._call_options.dependencies,
+                )
                 subscriber._call_decorators = (
                     _subscriber_compatibility_wrapper(
                         config=self._config,
                         context=self._startable_application.context,
+                        dependencies=dependencies,  # type: ignore[arg-type]
                     ),
                     *subscriber._call_decorators,
                 )

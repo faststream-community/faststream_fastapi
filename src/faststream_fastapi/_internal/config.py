@@ -18,6 +18,6 @@ class Config:
 
     def set_asgi_state(self, asgi_state: State) -> None:
         if self.asgi_state is not None:
-            raise ConfigAsgiStateError
+            raise ConfigAsgiStateError  # pragma: no cover
 
         self.asgi_state = asgi_state

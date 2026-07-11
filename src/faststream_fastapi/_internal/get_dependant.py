@@ -66,7 +66,7 @@ def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
             }
 
             if PYDANTIC_V2:
-                from pydantic.fields import FieldInfo
+                from pydantic.fields import FieldInfo  # noqa: PLC0415
 
                 info = cast("FieldInfo", info)
 
@@ -93,7 +93,9 @@ def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
                 )
 
             else:
-                from pydantic.fields import ModelField  # type: ignore[attr-defined]
+                from pydantic.fields import (  # type: ignore[attr-defined] # noqa: PLC0415 # pragma: no cover
+                    ModelField,
+                )
 
                 info = cast("ModelField", info)
 
@@ -129,7 +131,7 @@ def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
     return dependant
 
 
-def has_forbidden_types(
+def has_forbidden_types(  # noqa: C901
     orig_call: Callable[..., Any],
     forbidden_types: tuple[Any, ...],
 ) -> set[Any]:

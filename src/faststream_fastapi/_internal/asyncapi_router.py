@@ -36,8 +36,8 @@ class AsyncAPIRouter(APIRouter):
         if self._config.asyncapi_yaml_path is not None:
             self.get(self._config.asyncapi_yaml_path)(self.make_download_app_yaml_schema(schema))
 
-        if try_processor is not None:
-            self.post(self._config.try_it_out_plugin_url, include_in_schema=False)(
+        if try_processor is not None and self._config.try_it_out_path is not None:
+            self.post(self._config.try_it_out_path, include_in_schema=False)(
                 self.make_try_asyncapi_schema(try_processor),
             )
 
@@ -102,7 +102,7 @@ class AsyncAPIRouter(APIRouter):
         async def try_asyncapi_schema(request: Request) -> Response:
             try:
                 body = await request.json()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 return JSONResponse({"details": f"Invalid JSON: {e}"}, 400)
 
             result = await try_processor.process(body)
