@@ -22,6 +22,16 @@ async def subscriber_handler(
     ...
 ```
 
+### Сan use FastAPI dependency overrides
+```py
+fastapi = FastAPI()
+fastapi.dependency_overrides[Dep] = lambda: "Dep"
+
+@broker.subscriber("subject")
+async def subscriber(dep: Annotated[str, De[]]) -> None:
+    assert dep == "Dep"
+```
+
 ### Using the FastStream Context
 ```py
 from faststream_fastapi import Context
@@ -67,16 +77,6 @@ async def lifespan(app: FastAPI):
 @broker.subscriber("subject")
 async def subscriber(request: Request) -> None:
     assert request.state.lifespan_data == "LIFESPAN DATA"
-```
-
-### Сan use FastAPI dependency overrides
-```py
-fastapi = FastAPI()
-fastapi.dependency_overrides[Dep] = lambda: "Dep"
-
-@broker.subscriber("subject")
-async def subscriber(dep: Annotated[str, De[]]) -> None:
-    assert dep == "Dep"
 ```
 
 ### The ability to configure AsyncAPI

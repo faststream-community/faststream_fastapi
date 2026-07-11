@@ -1,5 +1,3 @@
-from typing import Literal
-
 import pytest
 from faststream.mqtt import MQTTBroker
 

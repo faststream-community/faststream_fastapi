@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any, ClassVar, Generic, TypeVar, overload
 
 from asgi_lifespan import LifespanManager
