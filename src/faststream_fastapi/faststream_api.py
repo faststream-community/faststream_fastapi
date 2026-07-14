@@ -1,17 +1,16 @@
+import traceback
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from types import TracebackType
-from typing import Any, cast
+from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
-from fastapi.background import BackgroundTasks
 from fastapi.params import Depends
 from faststream.message import StreamMessage
-from faststream.middlewares import BaseMiddleware
 from faststream.specification.base import SpecificationFactory
-from starlette.types import Lifespan, Receive, Scope, Send
+from starlette.types import Receive, Scope, Send
 
 from faststream_fastapi._internal.asyncapi_router import AsyncAPIRouter
+from faststream_fastapi._internal.background_middleware import _BackgroundMiddleware
 from faststream_fastapi._internal.config import Config
 from faststream_fastapi._internal.fs_re_exports.application import StartAbleApplication
 from faststream_fastapi._internal.fs_re_exports.broker import BrokerUsecase
@@ -22,24 +21,6 @@ from faststream_fastapi._internal.wrap_callable_to_fastapi_compatible import (
     wrap_callable_to_fastapi_compatible,
 )
 from faststream_fastapi.asyncapi_config import AsyncAPIConfig
-
-
-class _BackgroundMiddleware(BaseMiddleware):
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None = None,
-        exc_val: BaseException | None = None,
-        exc_tb: TracebackType | None = None,
-    ) -> bool | None:
-        if not exc_type and (
-            background := cast(
-                "BackgroundTasks | None",
-                getattr(self.context.get_local("message"), "background", None),
-            )
-        ):
-            await background()
-
-        return await super().after_processed(exc_type, exc_val, exc_tb)
 
 
 def _subscriber_compatibility_wrapper(
@@ -71,9 +52,6 @@ class FastStreamAPI:
         asyncapi_path: str | AsyncAPIConfig | None = None,
     ) -> None:
         self._application = application
-        self._application.router.lifespan_context = self._wrap_lifespan(
-            self._application.router.lifespan_context,
-        )
 
         self._brokers = brokers
 
@@ -119,33 +97,60 @@ class FastStreamAPI:
                     *subscriber._call_decorators,
                 )
 
-    def _wrap_lifespan(
-        self,
-        lifespan_context: Lifespan[Any],
-    ) -> Callable[[Any], AbstractAsyncContextManager[Any, Any]]:
-        @asynccontextmanager
-        async def wrapped(app: Any) -> AsyncIterator[Any]:
-            if self._asyncapi_config is not None:
-                asyncapi_router = AsyncAPIRouter(
-                    brokers=self._brokers,
-                    config=self._asyncapi_config,
-                    schema=self._startable_application.schema,
-                )
-                self._application.include_router(asyncapi_router)
+    @asynccontextmanager
+    async def _lifespan_context(self, application: Any) -> AsyncIterator[None]:
+        if self._asyncapi_config is not None:
+            asyncapi_router = AsyncAPIRouter(
+                brokers=self._brokers,
+                config=self._asyncapi_config,
+                schema=self._startable_application.schema,
+            )
+            self._application.include_router(asyncapi_router)
 
+        started_brokers: list[BrokerUsecase[Any, Any]] = []
+
+        try:
             for broker in self._brokers:
                 await broker.start()
+                started_brokers.append(broker)
 
-            async with lifespan_context(app) as lifespan_context_result:
-                yield lifespan_context_result
+            yield None
+        finally:
+            for started_broker in started_brokers:
+                await started_broker.stop()
 
-            for broker in self._brokers:
-                await broker.stop()
+    async def lifespan(self, scope: Scope, receive: Receive, send: Send) -> None:
+        started = False
+        app: Any = scope.get("app")
+        await receive()
+        try:
+            async with (
+                self._lifespan_context(app),
+                self._application.router.lifespan_context(app) as maybe_state,
+            ):
+                if maybe_state is not None:
+                    if "state" not in scope:
+                        msg = 'The server does not support "state" in the lifespan scope.'
+                        raise RuntimeError(msg)  # noqa: TRY301
 
-        return wrapped
+                    scope["state"].update(maybe_state)
+
+                await send({"type": "lifespan.startup.complete"})
+                started = True
+                await receive()
+        except BaseException:
+            exc_text = traceback.format_exc()
+            if started:
+                await send({"type": "lifespan.shutdown.failed", "message": exc_text})
+            else:
+                await send({"type": "lifespan.startup.failed", "message": exc_text})
+            raise
+        else:
+            await send({"type": "lifespan.shutdown.complete"})
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
-            self._config.set_asgi_state(scope["state"])
+            await self.lifespan(scope, receive, send)
+            return None
 
         return await self._application(scope, receive, send)
