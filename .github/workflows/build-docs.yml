@@ -47,7 +47,7 @@ jobs:
           # Existing gh-pages content (e.g. archived version directories, CNAME,
           # .nojekyll) is left in place — only the root documentation is refreshed.
           git worktree add gh-pages-publish gh-pages
-          cp -r ./site/ gh-pages-publish/
+          rsync -a ./site/ gh-pages-publish/
 
           cd gh-pages-publish
           git add -A
