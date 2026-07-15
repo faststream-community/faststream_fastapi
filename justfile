@@ -14,13 +14,16 @@ default:
 [doc("Init infra")]
 [group("infra")]
 init python="3.10":
-  docker build . --build-arg PYTHON_VERSION={{python}}
   uv sync --group dev -p {{python}}
+
+[doc("Build container")]
+[group("infra")]
+build python="3.10":
+  docker build . --build-arg PYTHON_VERSION={{python}}
 
 [doc("Run all containers")]
 [group("infra")]
 up:
-  docker compose build
   docker compose up -d
 
 [doc("Stop all containers")]
@@ -32,7 +35,6 @@ stop:
 [group("infra")]
 down:
   docker compose down
-
 
 [doc("Run fast tests")]
 [group("tests")]
@@ -82,7 +84,7 @@ docs-serve params="":
 
 # Linter
 _linter *params:
-  uv run --no-dev --group lint --frozen {{params}}
+  uv run --no-dev --group linters --frozen {{params}}
 
 [doc("Ruff format")]
 [group("linter")]
@@ -95,12 +97,12 @@ ruff-check *params:
   just _linter ruff check --exit-non-zero-on-fix {{params}}
 
 _codespell:
-  just _linter codespell -L Dependant,dependant --skip "./docs/site"
+  just _linter codespell -L Dependant,dependant --skip "./site"
 
 [doc("Check typos")]
 [group("linter")]
 typos: _codespell
-  just _linter pre-commit run --all-files typos
+  just _linter typos
 
 alias lint := linter
 
@@ -126,7 +128,7 @@ bandit:
 [doc("Semgrep check")]
 [group("static analysis")]
 semgrep:
-  just _static semgrep scan --config auto --error --skip-unknown-extensions faststream_fastapi
+  just _static semgrep scan --config auto --error --skip-unknown-extensions src/faststream_fastapi
 
 [doc("Zizmor check")]
 [group("static analysis")]

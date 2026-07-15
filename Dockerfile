@@ -17,7 +17,7 @@ RUN mkdir /app/src
 RUN mkdir /app/src/faststream_fastapi
 RUN touch /app/src/faststream_fastapi/__init__.py
 
-RUN uv sync --group dev
+RUN uv sync --group testing
 
 COPY ./src/ /app/src
 COPY ./tests /app/tests

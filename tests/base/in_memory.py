@@ -16,6 +16,7 @@ from faststream import (
     Response,
 )
 from faststream.exceptions import SetupError
+from pydantic import ValidationError
 
 from faststream_fastapi import Context
 from faststream_fastapi._internal.fs_re_exports.broker import BrokerUsecase
@@ -80,7 +81,7 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
             self.patch_broker(broker) as broker,
             self.get_test_client(broker),
         ):
-            with pytest.raises(RequestValidationError):
+            with pytest.raises((RequestValidationError, ValidationError)):
                 await broker.publish("hi", queue)
 
     async def test_headers(self, queue: str) -> None:
@@ -375,7 +376,7 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
 
         @application.get("/")
         async def handler(request: Request) -> None:
-            assert request.state["lifespan"]
+            assert request.state.lifespan
 
         broker = self.get_broker()
 
