@@ -24,7 +24,7 @@ build python="3.10":
 [doc("Run all containers")]
 [group("infra")]
 up:
-  docker compose up -d
+  docker compose up -d  --remove-orphans
 
 [doc("Stop all containers")]
 [group("infra")]
@@ -49,12 +49,12 @@ test-all +param="tests/": up
 [doc("Run fast tests with coverage")]
 [group("tests")]
 test-coverage +param="tests/": up
-  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'not slow and not connected' -n auto --cov --cov-report=term:skip-covered"
+  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'not slow and not connected' -n auto --cov --cov-report=term-missing"
 
 [doc("Run all tests with coverage")]
 [group("tests")]
 test-coverage-all +param="tests/": up
-  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'all' -n auto --cov --cov-report=term:skip-covered"
+  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'all' -n auto --cov --cov-report=term-missing"
 
 
 # Docs

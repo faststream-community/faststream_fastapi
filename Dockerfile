@@ -8,9 +8,11 @@ ENV PYTHONUNBUFFERED=1
 RUN mkdir app 
 WORKDIR app
 
-COPY ./pyproject.toml /app/pyproject.toml
-COPY ./README.md /app/README.md
+RUN touch /app/.coverage
+
 COPY ./LICENSE /app/LICENSE
+COPY ./README.md /app/README.md
+COPY ./pyproject.toml /app/pyproject.toml
 COPY ./uv.lock /app/uv.lock
 
 RUN mkdir /app/src

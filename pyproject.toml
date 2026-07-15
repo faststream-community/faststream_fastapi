@@ -123,6 +123,10 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 source = ["src/"]
+relative_files = true
+
+[tool.coverage.paths]
+source = ["src/", "/app/src/"]
 
 [tool.coverage.report]
 exclude_lines = [
