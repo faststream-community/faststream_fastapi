@@ -9,7 +9,6 @@ set shell := ["sh", "-c"]
 default:
   @just --list --unsorted --list-heading $'faststream_fastapi  commands…\n'
 
-
 # Infra
 [doc("Init infra")]
 [group("infra")]
@@ -58,28 +57,15 @@ test-coverage-all +param="tests/": up
 
 
 # Docs
-_docs *params:
-  cd docs && uv run --frozen python docs.py {{params}}
-
 [doc("Build docs")]
 [group("docs")]
-docs-build:
-  just _docs build
-
-[doc("Build API Reference")]
-[group("docs")]
-docs-build-api:
-  just _docs build-api-docs
-
-[doc("Update release notes")]
-[group("docs")]
-docs-update-release-notes:
-  just _docs update-release-notes
+docs-build params="":
+  uv run zensical build {{params}}
 
 [doc("Serve docs")]
 [group("docs")]
-docs-serve params="":
-  just _docs live 8000 {{params}}
+docs-serve:
+  uv run zensical serve -a 127.0.0.1:8000
 
 
 # Linter
