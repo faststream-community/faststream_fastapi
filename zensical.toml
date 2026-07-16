@@ -2,13 +2,33 @@
 site_name = "faststream_fastapi"
 site_description = "FastAPI plugin for FastStream"
 site_author = "Ivan Kirpichnikov"
-#site_url = "https://www.example.com/"
+# site_url = "https://www.example.com/"
 
 copyright = "Copyright &copy; 2026 Ivan Kirpichnikov"
 
 nav = [
-  { "Get started" = "index.md" },
-  { "Dependency Injection" = "dependency_injection.md"},
+  { "Get started" = [
+    { "Get started" = "index.md" },
+  ] },
+  { "Dependencies" = [
+    { "Dependencies" = "dependencies/index.md" },
+  ] },
+  { "Context" = [
+    { "Context" = "context/index.md" },
+  ] },
+  { "Background tasks" = [
+    { "Background tasks" = "backgound_tasks/index.md" },
+  ] },
+  { "Lifespan" = [
+    { "Lifespan" = "lifespan/index.md" },
+  ] },
+  { "AsyncAPI" = [
+    { "Schema export" = "asyncapi/schema_export.md" },
+    { "AsyncAPI Configure" = "asyncapi/asyncapi_configure.md" },
+  ] },
+  { "Testing" = [
+    { "Testing" = "testing/index.md" },
+  ] },
 ]
 
 [project.theme]
@@ -89,6 +109,7 @@ emoji_index = "zensical.extensions.emoji.twemoji"
 anchor_linenums = true
 line_spans = "__span"
 pygments_lang_class = true
+auto_title = true
 
 [project.markdown_extensions.pymdownx.inlinehilite]
 [project.markdown_extensions.pymdownx.keys]
@@ -108,3 +129,25 @@ combine_header_slug = true
 custom_checkbox = true
 
 [project.markdown_extensions.pymdownx.tilde]
+
+[project.markdown_extensions.mkdocstrings]
+default_handler = "python"
+
+[project.markdown_extensions.mkdocstrings.handlers.python]
+import = "https://docs.python.org/3/objects.inv"
+
+[project.markdown_extensions.mkdocstrings.handlers.python.options]
+show_root_heading = true
+show_if_no_docstring = true
+inherited_members = true
+members_order = "source"
+separate_signature = true
+unwrap_annotated = true
+merge_init_into_class = true
+docstring_section_style = "spacy"
+signature_crossrefs = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+show_docstring_attributes = false
+show_signature_annotations = true
+load_external_modules = true

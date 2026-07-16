@@ -1,6 +1,6 @@
 # Get started
 
-**faststream_fastapi** it is FastAPI plugin for FastStream.
+**faststream_fastapi** it is **FastAPI** plugin for **FastStream**.
 
 ## Installing
 
@@ -21,14 +21,13 @@
 
 ## Basic Usage
 
-Add the following code to a new file(e.g serve.py):
+Add the following code to a new file(e.g `serve.py`):
 
-```py
+```py title="serve.py"
 from typing import Annotated
 
 import uvicorn
 from fastapi import FastAPI, Response, Path, Query
-from fastapi.responses import JSONResponse
 from faststream.nats import NatsBroker
 from faststream_fastapi import FastStreamAPI
 
@@ -42,12 +41,12 @@ async def hello(name: Annotated[str, Path()]) -> Response:
 @fastapi.get("/")
 async def hello_web_handler(name: Annotated[str, Query()]) -> Response:
     resp = await broker.request(f"Hi, my name is {name}!", f"hi.{name}")
-    return JSONResponse(await resp.decode())
+    return Response(await resp.decode())
 
 application = FastStreamAPI(broker, application=fastapi)
 ```
 
 And just run this command:
-```shell
+```shell title="console"
 uvicorn run serve:application
 ```
