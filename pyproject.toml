@@ -75,6 +75,7 @@ static_analysis = [
 ]
 docs = [
     "zensical==0.0.50",
+    "mkdocstrings[python]==1.0.6",
 ]
 
 testing = [
