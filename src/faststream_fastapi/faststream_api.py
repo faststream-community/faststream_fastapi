@@ -97,6 +97,11 @@ class FastStreamAPI:
                     *subscriber._call_decorators,
                 )
 
+    # For FastStream docs gen
+    @property
+    def schema(self) -> SpecificationFactory:
+        return self._startable_application.schema
+
     @asynccontextmanager
     async def _lifespan_context(self, application: Any) -> AsyncIterator[None]:
         if self._asyncapi_config is not None:

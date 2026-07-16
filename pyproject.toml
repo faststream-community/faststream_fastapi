@@ -73,9 +73,7 @@ static_analysis = [
     "semgrep==1.169.0",
     "zizmor==1.27.0",
 ]
-docs = [
-    "zensical==0.0.50",
-]
+docs = ["zensical==0.0.50"]
 
 testing = [
     "pytest==9.0.3",
