@@ -17,7 +17,7 @@ nav = [
     { "Context" = "context/index.md" },
   ] },
   { "Background tasks" = [
-    { "Background tasks" = "backgound_tasks/index.md" },
+    { "Background tasks" = "background_tasks/index.md" },
   ] },
   { "Lifespan" = [
     { "Lifespan" = "lifespan/index.md" },
