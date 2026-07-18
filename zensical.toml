@@ -84,7 +84,7 @@ toggle.name = "Switch to light mode"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/IvanKirpichnikov/faststream_fastapi"
+link = "https://github.com/faststream-community/faststream_fastapi"
 
 [project.markdown_extensions.abbr]
 [project.markdown_extensions.admonition]
