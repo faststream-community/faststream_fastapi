@@ -1,10 +1,24 @@
 # Context Fields Declaration
 
-You can also store your own objects in the **Context** from **faststream_fastapi**.
+You can also store your own objects in the **Context** from **faststream**.
+
+!!! note
+    You can use a regular `faststream_fastapi.Context`
+
 
 ## Global
 
 To declare an application-level context field, you need to create a ContextRepo and pass it to the FastStreamAPI.
+
+```py
+from faststream_fastapi import FastStreamAPI
+
+application = FastStreamAPI(...)
+
+application.context.set_global("secret_str", "my-perfect-secret")
+```
+
+or
 
 ```py
 from faststream.context import ContextRepo
@@ -29,11 +43,11 @@ It could me extremely uselful to fill context with additional options in Middlew
 from typing import Any, Annotated
 
 from fastapi import FastAPI
-from faststream import BaseMiddleware
+from faststream import BaseMiddleware, Context
 from faststream.nats import NatsBroker, NatsMessage
 from faststream.types import AsyncFuncAny
 from faststream.message import StreamMessage
-from faststream_fastapi import FastStreamAPI, Context
+from faststream_fastapi import FastStreamAPI
 
 class Middleware(BaseMiddleware):
     async def consume_scope(
@@ -60,7 +74,7 @@ async def handle(
 To do this, you need to use
 
 ```py
-from faststream_fastapi import Context
+from faststream import Context
 
 @broker.subscriber("subject")
 async def handle(context = Context()) -> None: ...
@@ -69,7 +83,7 @@ async def handle(context = Context()) -> None: ...
 or `Context("context")`
 
 ```py
-from faststream_fastapi import Context
+from faststream import Context
 
 @broker.subscriber("subject")
 async def handle(context_repo = Context("context")) -> None: ...
@@ -78,7 +92,7 @@ async def handle(context_repo = Context("context")) -> None: ...
 or you can use a ready-made Annotated type from the plugin.
 
 ```py
-from faststream_fastapi import ContextRepo
+from faststream import ContextRepo
 
 @broker.subscriber("subject")
 async def handle(context_repo: ContextRepo) -> None: ...

@@ -1,4 +1,3 @@
-import asyncio
 import inspect
 from collections.abc import Awaitable, Callable, Iterable
 from contextlib import AsyncExitStack
@@ -21,13 +20,14 @@ from faststream_fastapi._internal.fastapi_compat import (
     raise_fastapi_validation_error,
     solve_faststream_dependency,
 )
-from faststream_fastapi._internal.fs_re_exports.context import Context, ContextRepo
+from faststream_fastapi._internal.fs_re_exports.context import ContextRepo
 from faststream_fastapi._internal.get_dependant import (
     get_fastapi_native_dependant,
     has_forbidden_types,
     is_faststream_decorated,
     mark_faststream_decorated,
 )
+from faststream_fastapi._internal.replace_context import replace_context
 from faststream_fastapi.stream_message import StreamMessage
 
 P_HandlerParams = ParamSpec("P_HandlerParams")
@@ -41,17 +41,12 @@ def wrap_callable_to_fastapi_compatible(
     context: ContextRepo,
     dependencies: Iterable[Depends],
 ) -> Callable[[NativeMessage[Any]], Awaitable[Any]]:
+    user_callable = replace_context(user_callable)
+
     if has_forbidden_types(user_callable, (Dependant,)):
         msg = (
             f"Incorrect `faststream.Depends` usage at `{user_callable.__name__}`. "
             "For FastAPI integration use `fastapi.Depends` instead."
-        )
-        raise SetupError(msg)
-
-    if has_forbidden_types(user_callable, (Context,)):
-        msg = (
-            f"Incorrect `faststream.Context` usage at `{user_callable.__name__}`. "
-            "For FastAPI integration use `faststream.[broker].fastapi.Context` instead."
         )
         raise SetupError(msg)
 
@@ -130,7 +125,7 @@ def make_fastapi_execution(
     [StreamMessage, NativeMessage[Any]],
     Awaitable[Response],
 ]:
-    is_coroutine = asyncio.iscoroutinefunction(dependent.call)
+    is_coroutine = inspect.iscoroutinefunction(dependent.call)
 
     async def app(
         request: StreamMessage,

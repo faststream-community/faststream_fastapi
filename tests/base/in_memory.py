@@ -219,15 +219,19 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         args, kwargs = self.get_subscriber_params(queue)
 
         @broker.subscriber(*args, **kwargs)
-        async def hello(message: Any = FSContext()) -> None:
-            pass
+        async def hello(message: Any = FSContext()) -> Any:
+            return await message.decode()
 
-        with pytest.raises(SetupError):
-            async with (
-                self.patch_broker(broker) as broker,
-                self.get_test_client(broker),
-            ):
-                pass
+        async with (
+            self.patch_broker(broker) as broker,
+            self.get_test_client(broker),
+        ):
+            r = await broker.request(
+                {"body": "hi"},
+                queue,
+                timeout=0.5,
+            )
+            assert await r.decode() == {"body": "hi"}, r
 
     async def test_faststream_context_annotated(self, queue: str) -> None:
         broker = self.get_broker()
@@ -235,15 +239,19 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         args, kwargs = self.get_subscriber_params(queue)
 
         @broker.subscriber(*args, **kwargs)
-        async def hello(msg: Annotated[Any, FSContext()]) -> None:
-            pass
+        async def hello(msg: Annotated[Any, FSContext("message.headers")]) -> Any:
+            return await msg.decode()
 
-        with pytest.raises(SetupError):
-            async with (
-                self.patch_broker(broker),
-                self.get_test_client(broker),
-            ):
-                pass
+        async with (
+            self.patch_broker(broker),
+            self.get_test_client(broker),
+        ):
+            r = await broker.request(
+                {"body": "hi"},
+                queue,
+                timeout=0.5,
+            )
+            assert await r.decode() == {"body": "hi"}, r
 
     async def test_combined_context_annotated(self, queue: str) -> None:
         broker = self.get_broker()
@@ -257,14 +265,19 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
                 Context("message.headers"),
                 FSContext("message.headers"),
             ],
-        ) -> None:
-            pass
+        ) -> Any:
+            return await message.decode()
 
         async with (
             self.patch_broker(broker),
             self.get_test_client(broker),
         ):
-            pass
+            r = await broker.request(
+                {"body": "hi"},
+                queue,
+                timeout=0.5,
+            )
+            assert await r.decode() == {"body": "hi"}, r
 
     async def test_nested_combined_context_annotated(self, queue: str) -> None:
         broker = self.get_broker()
@@ -276,14 +289,19 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
                 Annotated[Any, FSContext("message.headers")],
                 Context("message.headers"),
             ],
-        ) -> None:
-            pass
+        ) -> Any:
+            return await message.decode()
 
         async with (
             self.patch_broker(broker),
             self.get_test_client(broker),
         ):
-            pass
+            r = await broker.request(
+                {"body": "hi"},
+                queue,
+                timeout=0.5,
+            )
+            assert await r.decode() == {"body": "hi"}, r
 
     async def test_yield_depends(self, mock: Mock, queue: str) -> None:
         broker = self.get_broker()

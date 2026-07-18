@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Callable
 from typing import Annotated, Any
 
@@ -6,15 +5,12 @@ from fastapi import params
 
 from faststream_fastapi._internal.fs_re_exports.constants import EMPTY
 from faststream_fastapi._internal.fs_re_exports.context import (
-    ContextRepo as FSContextRepo,
-)
-from faststream_fastapi._internal.fs_re_exports.context import (
     resolve_context_by_name,
 )
 
 
 def Context(  # noqa: N802
-    name: str,
+    name: str = "",
     *,
     default: Any = EMPTY,
     initial: Callable[..., Any] | None = None,
@@ -33,7 +29,3 @@ def Context(  # noqa: N802
         )
 
     return params.Depends(solve_context, use_cache=True)
-
-
-Logger = Annotated[logging.Logger, Context("logger")]
-ContextRepo = Annotated[FSContextRepo, Context("context")]
