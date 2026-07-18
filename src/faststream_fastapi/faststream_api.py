@@ -102,27 +102,16 @@ class FastStreamAPI:
     def schema(self) -> SpecificationFactory:
         return self._startable_application.schema
 
-    @asynccontextmanager
-    async def _lifespan_context(self, application: Any) -> AsyncIterator[None]:
-        if self._asyncapi_config is not None:
-            asyncapi_router = AsyncAPIRouter(
-                brokers=self._brokers,
-                config=self._asyncapi_config,
-                schema=self._startable_application.schema,
-            )
-            self._application.include_router(asyncapi_router)
+    @property
+    def context(self) -> ContextRepo:
+        return self._startable_application.context
 
-        started_brokers: list[BrokerUsecase[Any, Any]] = []
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "lifespan":
+            await self.lifespan(scope, receive, send)
+            return None
 
-        try:
-            for broker in self._brokers:
-                await broker.start()
-                started_brokers.append(broker)
-
-            yield None
-        finally:
-            for started_broker in started_brokers:
-                await started_broker.stop()
+        return await self._application(scope, receive, send)
 
     async def lifespan(self, scope: Scope, receive: Receive, send: Send) -> None:
         started = False
@@ -153,9 +142,24 @@ class FastStreamAPI:
         else:
             await send({"type": "lifespan.shutdown.complete"})
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "lifespan":
-            await self.lifespan(scope, receive, send)
-            return None
+    @asynccontextmanager
+    async def _lifespan_context(self, application: Any) -> AsyncIterator[None]:
+        if self._asyncapi_config is not None:
+            asyncapi_router = AsyncAPIRouter(
+                brokers=self._brokers,
+                config=self._asyncapi_config,
+                schema=self._startable_application.schema,
+            )
+            self._application.include_router(asyncapi_router)
 
-        return await self._application(scope, receive, send)
+        started_brokers: list[BrokerUsecase[Any, Any]] = []
+
+        try:
+            for broker in self._brokers:
+                await broker.start()
+                started_brokers.append(broker)
+
+            yield None
+        finally:
+            for started_broker in started_brokers:
+                await started_broker.stop()

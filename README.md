@@ -34,7 +34,7 @@ async def subscriber(dep: Annotated[str, De[]]) -> None:
 
 ### Using the FastStream Context
 ```py
-from faststream_fastapi import Context
+from faststream import Context
 
 @broker.subscriber("subject")
 async def subscriber_handler(context_data: Annotated[int, Context("data")]) -> Response: ...
@@ -55,19 +55,15 @@ async def subscriber_handler(request: Request) -> Response:
 All you need to do is wrap the **FastAPI** with the **FastStreamAPI** object from the **plugin**
 
 ```py
-fastapi = FastAPI()
-
 application = FastStreamAPI(
     NatsBroker(),
-    application=fastapi,
+    application=FastAPI(),
 )
 uvicorn.run(application)
 ```
 
 ### Managing a lifespan state
 Now the **lifespan state** is also available in **FastStream handlers**
-
-Which was not the case in the old plugin
 
 ```py
 @asynccontextmanager

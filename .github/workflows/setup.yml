@@ -64,6 +64,10 @@ jobs:
       run: |
         just static-analysis
 
+    - name: "Build docs"
+      run: |
+        just docs-build --clean
+
     - name: "Run tests"
       run: |
         just test-coverage-all
