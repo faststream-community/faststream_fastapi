@@ -96,6 +96,7 @@ ignore = [
     "SLF001",
     "B008",
     "PLR2004",
+    "CPY",
 ]
 
 [lint.per-file-ignores]

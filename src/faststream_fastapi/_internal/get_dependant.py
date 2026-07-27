@@ -2,7 +2,6 @@ import inspect
 from collections.abc import Callable, Iterable
 from typing import Annotated, Any, Final, cast, get_args, get_origin
 
-from fast_depends.library.serializer import OptionItem
 from fast_depends.utils import get_typed_annotation
 from fastapi.dependencies.models import Dependant
 from fastapi.dependencies.utils import (
@@ -11,7 +10,7 @@ from fastapi.dependencies.utils import (
     get_typed_signature,
 )
 from fastapi.params import Depends
-from pydantic import Field, create_model
+from pydantic import Field
 
 from faststream_fastapi._internal.fs_re_exports._compat import PYDANTIC_V2, PydanticUndefined
 
@@ -117,16 +116,6 @@ def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
                 get_typed_annotation(info.annotation, globalns, {}),
                 f,
             )
-
-    dependant.model = create_model(  # type: ignore[attr-defined]
-        getattr(call, "__name__", type(call).__name__),
-    )
-
-    dependant.custom_fields = {}  # type: ignore[attr-defined]
-    dependant.flat_params = [  # type: ignore[attr-defined]
-        OptionItem(field_name=name, field_type=type_, default_value=default)
-        for name, (type_, default) in params_unique.items()
-    ]
 
     return dependant
 

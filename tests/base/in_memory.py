@@ -239,7 +239,7 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         args, kwargs = self.get_subscriber_params(queue)
 
         @broker.subscriber(*args, **kwargs)
-        async def hello(msg: Annotated[Any, FSContext("message.headers")]) -> Any:
+        async def hello(msg: Annotated[Any, FSContext("message")]) -> Any:
             return await msg.decode()
 
         async with (
@@ -262,8 +262,8 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         async def hello(
             message: Annotated[
                 Any,
-                Context("message.headers"),
-                FSContext("message.headers"),
+                Context("message"),
+                FSContext("message"),
             ],
         ) -> Any:
             return await message.decode()
@@ -286,8 +286,8 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         @broker.subscriber(*args, **kwargs)
         async def hello(
             message: Annotated[
-                Annotated[Any, FSContext("message.headers")],
-                Context("message.headers"),
+                Annotated[Any, FSContext("message")],
+                Context("message"),
             ],
         ) -> Any:
             return await message.decode()
