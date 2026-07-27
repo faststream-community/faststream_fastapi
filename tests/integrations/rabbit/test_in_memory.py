@@ -1,6 +1,8 @@
 import pytest
+from fastapi import FastAPI
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 
+from faststream_fastapi import FastStreamAPI
 from tests.base.in_memory import BaseInMemoryTestCaseConfig
 from tests.integrations.rabbit.abstract import RabbitAbstractInMemoryTestCaseConfig
 
@@ -11,6 +13,19 @@ class TestInMemoryRabbit(
     RabbitAbstractInMemoryTestCaseConfig,
     BaseInMemoryTestCaseConfig[RabbitBroker],
 ):
+    async def test_typed_handler_asyncapi_schema(self) -> None:
+        broker = self.get_broker()
+
+        @broker.subscriber("sample")
+        async def handler(message: str) -> str:
+            return message
+
+        app = FastStreamAPI(broker, application=FastAPI())
+        schema = app.schema.to_specification().to_jsonable()
+
+        assert "sample:_:Handler" in schema["channels"]
+        assert "Handler:Message:Payload" in schema["components"]["schemas"]
+
     async def test_path(self) -> None:
         broker = self.get_broker()
 
