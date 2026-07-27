@@ -82,7 +82,7 @@ else:
         errors: list[Any],
         body: dict[str, Any],
     ) -> Never:
-        raise RequestValidationError(errors, ROUTER_VALIDATION_ERROR_MODEL)  # type: ignore[misc]
+        raise RequestValidationError(errors, ROUTER_VALIDATION_ERROR_MODEL)  # type: ignore[call-arg]
 
 
 if FASTAPI_v102_3:
