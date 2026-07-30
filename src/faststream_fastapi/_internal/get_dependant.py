@@ -26,14 +26,16 @@ class _FastStreamDependant(Dependant):
 
 
 def _extend_fastapi_dependant(dependant: Dependant) -> _FastStreamDependant:
-    field_values = {field.name: getattr(dependant, field.name) for field in fields(dependant)}
+    field_values = {
+        field.name: getattr(dependant, field.name) for field in fields(dependant) if field.init
+    }
     return _FastStreamDependant(**field_values)
 
 
 def get_fastapi_dependant(
     orig_call: Callable[..., Any],
     dependencies: Iterable[Depends],
-) -> Dependant:
+) -> _FastStreamDependant:
     dependent = get_fastapi_native_dependant(orig_call=orig_call, dependencies=dependencies)
     return _patch_fastapi_dependent(dependent)
 
@@ -56,7 +58,7 @@ def get_fastapi_native_dependant(
     return dependent
 
 
-def _patch_fastapi_dependent(dependant: Dependant) -> Dependant:
+def _patch_fastapi_dependent(dependant: Dependant) -> _FastStreamDependant:
     dependant = _extend_fastapi_dependant(dependant)
     params = dependant.query_params + dependant.body_params
 
