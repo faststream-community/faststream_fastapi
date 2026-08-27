@@ -407,6 +407,23 @@ class BaseInMemoryTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_Brok
         mock.start.assert_called_once()
         mock.close.assert_called_once()
 
+    async def test_lifespan_app(self, mock: Mock) -> None:
+        @asynccontextmanager
+        async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+            mock(application)
+            yield None
+
+        application = FastAPI(lifespan=lifespan)
+        broker = self.get_broker()
+
+        async with (
+            self.patch_broker(broker),
+            self.get_test_client(broker, application=application),
+        ):
+            pass
+
+        mock.assert_called_once_with(application)
+
     async def test_subscriber_mock(self, queue: str) -> None:
         broker = self.get_broker()
 
