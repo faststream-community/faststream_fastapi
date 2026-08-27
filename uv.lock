@@ -16,9 +16,9 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "aiormq", version = "6.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "yarl", marker = "python_full_version < '3.11'" },
+    { name = "aiormq", version = "6.9.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "exceptiongroup" },
+    { name = "yarl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/63/56354526f2e6e915c93bee6e4dedb35888fe82d6bc1a19f35f5a77e795ff/aio_pika-9.6.2.tar.gz", hash = "sha256:c49e9246080dc8ffa1bb0e4aca407bf3d8ad78c3ee3a93df88b68fe65d7a49b9", size = 70851, upload-time = "2026-03-22T19:03:20.878Z" }
 wheels = [
@@ -35,8 +35,8 @@ resolution-markers = [
     "python_full_version >= '3.11' and python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "aiormq", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "yarl", marker = "python_full_version >= '3.11'" },
+    { name = "aiormq", version = "7.0.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "yarl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8f/7f/01f4ea7fe3490194420bb52e596b9619092ed13c5a230014b02075c3bd77/aio_pika-10.0.1.tar.gz", hash = "sha256:96ec3ef748ca7a25a9d2fa6e511c16c3ffcfa6b1f40ade79b8a5baabba682efd", size = 70882, upload-time = "2026-07-09T13:31:35.709Z" }
 wheels = [
@@ -94,8 +94,8 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "pamqp", version = "3.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "yarl", marker = "python_full_version < '3.11'" },
+    { name = "pamqp", version = "3.3.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "yarl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6c/0e/db90154d52d399108903fe603e5110a533c42065180265dd003788264080/aiormq-6.9.4.tar.gz", hash = "sha256:0e7c01b662804e1cc7ace9a17794e8c1192a27fc2afa96162362a6e61ae8e8ef", size = 49232, upload-time = "2026-03-23T09:18:19.493Z" }
 wheels = [
@@ -112,8 +112,8 @@ resolution-markers = [
     "python_full_version >= '3.11' and python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "pamqp", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "yarl", marker = "python_full_version >= '3.11'" },
+    { name = "pamqp", version = "4.0.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "yarl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/00/16/7e1c2bb887db6cbad191db9a1562e1cf5c0c61ad93f194ddc7baf5661f02/aiormq-7.0.0.tar.gz", hash = "sha256:f524121f1afbb875f50235b2748f81331e3be47542ee600e83c321c4e97ea168", size = 49231, upload-time = "2026-07-09T11:40:51.775Z" }
 wheels = [
@@ -832,7 +832,7 @@ redis = [
 
 [[package]]
 name = "faststream-fastapi"
-version = "1.2.1"
+version = "1.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
