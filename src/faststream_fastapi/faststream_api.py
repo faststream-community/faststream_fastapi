@@ -121,8 +121,8 @@ class FastStreamAPI:
         await receive()
         try:
             async with (
-                self._lifespan_context(app),
                 self._application.router.lifespan_context(app) as maybe_state,
+                self._lifespan_context(app),
             ):
                 if maybe_state is not None:
                     if "state" not in scope:
