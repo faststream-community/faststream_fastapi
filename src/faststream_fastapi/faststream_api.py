@@ -107,6 +107,8 @@ class FastStreamAPI:
         return self._startable_application.context
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        scope["app"] = self._application
+
         if scope["type"] == "lifespan":
             await self.lifespan(scope, receive, send)
             return None
