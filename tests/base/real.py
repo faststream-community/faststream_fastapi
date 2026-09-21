@@ -1,11 +1,12 @@
+import asyncio
 from asyncio import Event, create_task, wait
 from typing import Annotated, Any, Generic, TypeVar
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from fastapi import BackgroundTasks
 
-from faststream_fastapi import Context, StreamMessage
+from faststream_fastapi import Context, FastStreamAPI, StreamMessage
 from faststream_fastapi._internal.fs_re_exports.broker import BrokerUsecase
 from faststream_fastapi._internal.fs_re_exports.context import ContextRepo
 from tests.base.abstract import AbstractTestCaseConfig
@@ -263,3 +264,12 @@ class BaseRealTestCaseConfig(AbstractTestCaseConfig[_BrokerT], Generic[_BrokerT]
             )
 
         mock.assert_called_once_with(True)
+
+    async def test_conneciton_safe_true(self, mock: MagicMock) -> None:
+        broker = self.get_broker()
+        app = FastStreamAPI(broker, application=mock, safe_connection=True)
+
+        await asyncio.wait(
+            [asyncio.create_task(app._connect_broker(broker))],
+            timeout=self.timeout,
+        )

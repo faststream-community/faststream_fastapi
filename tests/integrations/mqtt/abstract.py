@@ -12,6 +12,7 @@ class MQTTAbstractTestCaseConfig(AbstractTestCaseConfig[MQTTBroker]):
     @override
     def get_broker(
         self,
+        *args: Any,
         apply_types: bool = False,
         **kwargs: Any,
     ) -> MQTTBroker:

@@ -1,6 +1,7 @@
 import traceback
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from contextlib import asynccontextmanager
+from logging import getLogger
 from typing import Any
 
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from fastapi.params import Depends
 from faststream.message import StreamMessage
 from faststream.specification.base import SpecificationFactory
 from starlette.types import Receive, Scope, Send
+from typing_extensions import Self
 
 from faststream_fastapi._internal.asyncapi_router import AsyncAPIRouter
 from faststream_fastapi._internal.background_middleware import _BackgroundMiddleware
@@ -22,6 +24,7 @@ from faststream_fastapi._internal.wrap_callable_to_fastapi_compatible import (
 )
 from faststream_fastapi.asyncapi_config import AsyncAPIConfig
 
+_logger = getLogger(__name__)
 
 def _subscriber_compatibility_wrapper(
     config: Config,
@@ -41,6 +44,10 @@ def _subscriber_compatibility_wrapper(
     return subscriber_compatibility_wrapper
 
 
+async def _default_connection_hook(broker: BrokerUsecase[Any, Any]) -> None:
+    await broker.start()
+
+
 class FastStreamAPI:
     def __init__(
         self,
@@ -50,6 +57,9 @@ class FastStreamAPI:
         # AsyncAPI
         specification: SpecificationFactory | None = None,
         asyncapi_path: str | AsyncAPIConfig | None = None,
+        # Low API
+        safe_connection: bool = False,
+        connection_hook: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
         self._application = application
 
@@ -96,6 +106,13 @@ class FastStreamAPI:
                     ),
                     *subscriber._call_decorators,
                 )
+
+        self._safe_connection = safe_connection
+
+        if connection_hook is None:
+            connection_hook = _default_connection_hook
+
+        self._connection_hook = connection_hook
 
     # For FastStream docs gen
     @property
@@ -145,7 +162,7 @@ class FastStreamAPI:
             await send({"type": "lifespan.shutdown.complete"})
 
     @asynccontextmanager
-    async def _lifespan_context(self, application: Any) -> AsyncIterator[None]:
+    async def _lifespan_context(self, application: Self) -> AsyncIterator[None]:
         if self._asyncapi_config is not None:
             asyncapi_router = AsyncAPIRouter(
                 brokers=self._brokers,
@@ -158,10 +175,18 @@ class FastStreamAPI:
 
         try:
             for broker in self._brokers:
-                await broker.start()
+                await self._connect_broker(broker)
                 started_brokers.append(broker)
 
             yield None
         finally:
             for started_broker in started_brokers:
                 await started_broker.stop()
+
+    async def _connect_broker(self, broker: BrokerUsecase[Any, Any]) -> None:
+        try:
+            await self._connection_hook(broker)
+        except Exception as error:
+            if self._safe_connection:
+                raise
+            _logger.warning("The start to broker %r was unsuccessful.", broker, exc_info=error)

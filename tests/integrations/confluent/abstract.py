@@ -38,10 +38,11 @@ class ConfluentAbstractTestCaseConfig(AbstractTestCaseConfig[KafkaBroker]):
     @override
     def get_broker(
         self,
+        *args: Any,
         apply_types: bool = False,
         **kwargs: Any,
     ) -> KafkaBroker:
-        return KafkaBroker(apply_types=apply_types, **kwargs)
+        return KafkaBroker(*args, apply_types=apply_types, **kwargs)
 
 
 class ConfluentAbstractInMemoryTestCaseConfig(ConfluentAbstractTestCaseConfig):

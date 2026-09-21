@@ -11,6 +11,7 @@ class RedisAbstractTestCaseConfig(AbstractTestCaseConfig[RedisBroker]):
     @override
     def get_broker(
         self,
+        *args: Any,
         apply_types: bool = False,
         **kwargs: Any,
     ) -> RedisBroker:
