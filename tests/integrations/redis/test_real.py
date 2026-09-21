@@ -1,9 +1,11 @@
+import asyncio
 from asyncio import Event, create_task, sleep, wait
 from unittest.mock import MagicMock
 
 import pytest
 from faststream.redis import ListSub, RedisBroker, StreamSub
 
+from faststream_fastapi import FastStreamAPI
 from tests.base.real import BaseRealTestCaseConfig
 from tests.integrations.redis.abstract import RedisAbstractTestCaseConfig
 
@@ -134,3 +136,14 @@ class TestRealRedis(RedisAbstractTestCaseConfig, BaseRealTestCaseConfig[RedisBro
             )
 
         mock.assert_called_once_with(["hello"])
+
+    async def test_conneciton_safe_false(self, mock: MagicMock) -> None:
+        broker = self.get_broker("redis://localhost:6767")
+
+        app = FastStreamAPI(broker, application=mock)
+
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait(
+                [asyncio.create_task(app._connect_broker(broker))],
+                timeout=self.timeout,
+            )

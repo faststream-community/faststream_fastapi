@@ -22,7 +22,7 @@ class AbstractTestCaseConfig(ABC, Generic[_BrokerT]):
     @abstractmethod
     def get_broker(
         self,
-        *,
+        *args: Any,
         apply_types: bool = False,
         **kwargs: Any,
     ) -> _BrokerT:

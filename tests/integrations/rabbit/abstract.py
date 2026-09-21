@@ -11,6 +11,7 @@ class RabbitAbstractTestCaseConfig(AbstractTestCaseConfig[RabbitBroker]):
     @override
     def get_broker(
         self,
+        *args: Any,
         apply_types: bool = False,
         **kwargs: Any,
     ) -> RabbitBroker:
