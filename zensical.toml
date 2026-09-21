@@ -29,6 +29,9 @@ nav = [
   { "Testing" = [
     { "Testing" = "testing/index.md" },
   ] },
+  { "Low API" = [
+    { "Connection" = "low_api/connection/index.md"}
+  ] }
 ]
 
 [project.theme]
