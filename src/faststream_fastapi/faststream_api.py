@@ -101,7 +101,7 @@ class FastStreamAPI:
                 subscriber._call_decorators = (
                     _subscriber_compatibility_wrapper(
                         config=self._config,
-                        context=self._startable_application.context,
+                        context=broker.context,
                         dependencies=dependencies,  # type: ignore[arg-type]
                     ),
                     *subscriber._call_decorators,
