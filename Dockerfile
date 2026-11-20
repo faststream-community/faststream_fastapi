@@ -1,12 +1,12 @@
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 
 FROM python:$PYTHON_VERSION
-COPY --from=ghcr.io/astral-sh/uv:0.7.13 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV PYTHONUNBUFFERED=1
 
-RUN mkdir app 
-WORKDIR app
+RUN mkdir app
+WORKDIR /app
 
 RUN touch /app/.coverage
 
@@ -25,4 +25,4 @@ COPY ./src/ /app/src
 COPY ./tests /app/tests
 COPY ./docs /app/docs
 
-ENV PATH="/src/.venv/bin:$PATH"
+ENV PATH="/app/src/.venv/bin:$PATH"

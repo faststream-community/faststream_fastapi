@@ -4,6 +4,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 # Use sh on Unix-like systems
 set shell := ["sh", "-c"]
 
+python_version := env("PYTHON_VERSION", "3.11")
 
 [doc("All command information")]
 default:
@@ -12,17 +13,17 @@ default:
 # Infra
 [doc("Init infra")]
 [group("infra")]
-init python="3.10":
+init python="3.11":
   uv sync --group dev -p {{python}}
 
 [doc("Build container")]
 [group("infra")]
-build python="3.10":
-  docker build . --build-arg PYTHON_VERSION={{python}}
+build python=python_version:
+  docker compose build --build-arg PYTHON_VERSION={{python}} faststream_fastapi
 
 [doc("Run all containers")]
 [group("infra")]
-up:
+up: build
   docker compose up -d  --remove-orphans
 
 [doc("Stop all containers")]
@@ -48,24 +49,24 @@ test-all +param="tests/": up
 [doc("Run fast tests with coverage")]
 [group("tests")]
 test-coverage +param="tests/": up
-  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'not slow and not connected' -n auto --cov --cov-report=term-missing"
+  docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'not slow and not connected' -n auto --cov --cov-report=term-missing"
 
 [doc("Run all tests with coverage")]
 [group("tests")]
 test-coverage-all +param="tests/": up
-  -docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'all' -n auto --cov --cov-report=term-missing"
+  docker compose exec faststream_fastapi uv run sh -c "pytest {{param}} -m 'all' -n auto --cov --cov-report=term-missing"
 
 
 # Docs
 [doc("Build docs")]
 [group("docs")]
 docs-build params="":
-  uv run zensical build {{params}}
+  uv run --group docs zensical build {{params}}
 
 [doc("Serve docs")]
 [group("docs")]
 docs-serve:
-  uv run zensical serve -a 127.0.0.1:8000
+  uv run --group docs zensical serve -a 127.0.0.1:8000
 
 
 # Linter
@@ -99,12 +100,12 @@ linter: ruff-format ruff-check _codespell
 
 # Static analysis
 _static *params:
-  uv run --frozen {{params}}
+  uv run --frozen --group static_analysis {{params}}
 
 [doc("Mypy check")]
 [group("static analysis")]
 mypy *params:
-  just _static mypy {{params}}
+  just _static --group testing mypy {{params}}
 
 [doc("Bandit check")]
 [group("static analysis")]

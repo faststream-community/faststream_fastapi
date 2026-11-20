@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
+from syrupy.extensions.json import JSONSnapshotExtension
 
 from faststream_fastapi._internal.fs_re_exports.context import ContextRepo
 
@@ -46,3 +48,8 @@ def mock() -> Generator[MagicMock, Any, None]:
 @pytest.fixture()
 def context() -> ContextRepo:
     return ContextRepo()
+
+
+@pytest.fixture()
+def snapshot_json(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    return snapshot.use_extension(JSONSnapshotExtension)

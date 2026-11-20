@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
 
@@ -11,7 +13,7 @@ class TestInMemoryRabbit(
     RabbitAbstractInMemoryTestCaseConfig,
     BaseInMemoryTestCaseConfig[RabbitBroker],
 ):
-    async def test_path(self) -> None:
+    async def test_path(self, mock: MagicMock) -> None:
         broker = self.get_broker()
 
         args, kwargs = self.get_subscriber_params(
@@ -26,17 +28,13 @@ class TestInMemoryRabbit(
         )
 
         @broker.subscriber(*args, **kwargs)
-        async def subscriber_handler(name: str) -> str:
-            return name
+        async def subscriber_handler(name: str) -> None:
+            mock(name)
 
         async with (
             self.patch_broker(broker) as broker,
             self.get_test_client(broker),
         ):
-            r = await broker.request(
-                "hi",
-                "in.john",
-                "test",
-                timeout=0.5,
-            )
-            assert await r.decode() == "john"
+            await broker.publish("hi", "in.john", "test")
+
+        mock.assert_called_once_with("john")

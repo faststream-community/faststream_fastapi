@@ -4,12 +4,12 @@ The lifespan in FastAPI allows you to set your own state
 
 ```py
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI
 
 @asynccontextmanager
-async def lifespan(application: FastAPI) -> AsyncIterator[dict[str, Any]]:
+async def lifespan(application: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
     yield {"data": "data"}
 ```
 

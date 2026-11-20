@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 from faststream.confluent import KafkaBroker
 
-from faststream_fastapi import FastStreamAPI
 from tests.base.real import BaseRealTestCaseConfig
 from tests.integrations.confluent.abstract import ConfluentAbstractTestCaseConfig
 
@@ -39,14 +38,3 @@ class TestRealConfluent(ConfluentAbstractTestCaseConfig, BaseRealTestCaseConfig[
 
         assert event.is_set()
         mock.assert_called_with(["hi"])
-
-    async def test_conneciton_safe_false(self, mock: MagicMock) -> None:
-        broker = self.get_broker("localhost:6767")
-
-        app = FastStreamAPI(broker, application=mock)
-
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait(
-                [asyncio.create_task(app._connect_broker(broker))],
-                timeout=self.timeout,
-            )

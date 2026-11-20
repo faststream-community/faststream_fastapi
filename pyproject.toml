@@ -12,7 +12,7 @@ authors = [
 license = "MIT"
 license-files = ["LICENSE"]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "1.4.0"
 
 keywords = [
@@ -33,7 +33,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -63,34 +62,36 @@ dependencies = [
 
 [dependency-groups]
 linters = [
-    "ruff==0.16.0",
-    "typos==1.48.0",
+    "ruff==0.17.6",
+    "typos==1.52.2",
     "codespell==2.4.3",
 ]
 static_analysis = [
-    "mypy==2.3.0",
+    "mypy==2.4.1",
     "bandit==1.9.4",
-    "semgrep==1.171.0",
-    "zizmor==1.28.0",
+    "semgrep==1.186.0",
+    "zizmor==1.32.0",
 ]
 docs = [
-    "zensical==0.0.51",
-    "mkdocstrings[python]==1.0.6",
+    "zensical==0.1.3",
+    "mkdocstrings[python]==1.0.8",
 ]
 
 testing = [
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
+    "pytest==9.2.0",
+    "pytest-asyncio==1.5.0",
     "pytest-xdist==3.8.0",
     "pytest-timeout==2.4.0",
     "pytest-cov==7.1.0",
     "covdefaults==2.3.0",
+    "syrupy==6.1.1",
     { include-group = "testing-dependencies" },
 ]
 testing-dependencies = [
-    "httpx2==2.5.0",
+    "httpx2==2.16.2",
     "asgi_lifespan==2.1.0",
     "faststream[rabbit,kafka,confluent,nats,redis,mqtt]>=0.7.0",
+    "pyyaml==6.0.3",
 ]
 
 dev = [
@@ -99,6 +100,9 @@ dev = [
     { include-group = "linters" },
     { include-group = "static_analysis" },
 ]
+
+[tool.uv]
+default-groups = []
 
 [tool.uv.build-backend]
 module-root = "src"

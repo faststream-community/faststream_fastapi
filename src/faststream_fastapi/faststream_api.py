@@ -1,15 +1,16 @@
 import traceback
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
+from contextlib import AsyncExitStack, asynccontextmanager
 from logging import getLogger
-from typing import Any
+from typing import Any, Self
+from weakref import WeakSet
 
 from fastapi import FastAPI
 from fastapi.params import Depends
+from faststream._internal.endpoint.subscriber.usecase import SubscriberUsecase
 from faststream.message import StreamMessage
 from faststream.specification.base import SpecificationFactory
 from starlette.types import Receive, Scope, Send
-from typing_extensions import Self
 
 from faststream_fastapi._internal.asyncapi_router import AsyncAPIRouter
 from faststream_fastapi._internal.background_middleware import _BackgroundMiddleware
@@ -25,6 +26,7 @@ from faststream_fastapi._internal.wrap_callable_to_fastapi_compatible import (
 from faststream_fastapi.asyncapi_config import AsyncAPIConfig
 
 _logger = getLogger(__name__)
+
 
 def _subscriber_compatibility_wrapper(
     config: Config,
@@ -54,6 +56,7 @@ class FastStreamAPI:
         *brokers: BrokerUsecase[Any, Any],
         application: FastAPI,
         context: ContextRepo | None = None,
+        max_streaming_reply_size: int = 1024 * 1024,
         # AsyncAPI
         specification: SpecificationFactory | None = None,
         asyncapi_path: str | AsyncAPIConfig | None = None,
@@ -61,9 +64,16 @@ class FastStreamAPI:
         safe_connection: bool = False,
         connection_hook: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
+        if max_streaming_reply_size <= 0:
+            msg = "max_streaming_reply_size must be positive."
+            raise ValueError(msg)
+
         self._application = application
 
         self._brokers = brokers
+        self._patched_subscribers: WeakSet[SubscriberUsecase[Any]] = WeakSet()
+        self._patched_brokers: list[BrokerUsecase[Any, Any]] = []
+        self._asyncapi_router_added = False
 
         self._startable_application = StartAbleApplication(
             *brokers,
@@ -73,10 +83,13 @@ class FastStreamAPI:
                 context=context or ContextRepo(),
             ),
         )
+        self._startable_application.config.context.set_global("app", self)
 
         self._config = Config(
             application=application,
             dependency_overrides_provider=self._application,
+            context=self._startable_application.context,
+            max_streaming_reply_size=max_streaming_reply_size,
         )
 
         if asyncapi_path is not None:
@@ -89,24 +102,6 @@ class FastStreamAPI:
             asyncapi_config = None
 
         self._asyncapi_config = asyncapi_config
-
-        for broker in self._brokers:
-            broker.config.add_middleware(_BackgroundMiddleware)
-
-            for subscriber in broker.subscribers:
-                dependencies = (
-                    *broker.config.broker_dependencies,
-                    *subscriber._call_options.dependencies,
-                )
-                subscriber._call_decorators = (
-                    _subscriber_compatibility_wrapper(
-                        config=self._config,
-                        context=self._startable_application.context,
-                        dependencies=dependencies,  # type: ignore[arg-type]
-                    ),
-                    *subscriber._call_decorators,
-                )
-
         self._safe_connection = safe_connection
 
         if connection_hook is None:
@@ -114,10 +109,23 @@ class FastStreamAPI:
 
         self._connection_hook = connection_hook
 
+        for broker in self._brokers:
+            self._patch_broker(broker)
+
     # For FastStream docs gen
     @property
     def schema(self) -> SpecificationFactory:
+        for broker in self._brokers:
+            self._patch_broker(broker)
         return self._startable_application.schema
+
+    @property
+    def broker(self) -> BrokerUsecase[Any, Any] | None:
+        return self._startable_application.broker
+
+    @property
+    def brokers(self) -> list[BrokerUsecase[Any, Any]]:
+        return self._startable_application.brokers
 
     @property
     def context(self) -> ContextRepo:
@@ -137,10 +145,7 @@ class FastStreamAPI:
         app: Any = scope.get("app")
         await receive()
         try:
-            async with (
-                self._application.router.lifespan_context(app) as maybe_state,
-                self._lifespan_context(app),
-            ):
+            async with self._application.router.lifespan_context(app) as maybe_state:
                 if maybe_state is not None:
                     if "state" not in scope:
                         msg = 'The server does not support "state" in the lifespan scope.'
@@ -148,9 +153,11 @@ class FastStreamAPI:
 
                     scope["state"].update(maybe_state)
 
-                await send({"type": "lifespan.startup.complete"})
-                started = True
-                await receive()
+                self._config.asgi_state = scope.get("state", {})
+                async with self._lifespan_context(app):
+                    await send({"type": "lifespan.startup.complete"})
+                    started = True
+                    await receive()
         except BaseException:
             exc_text = traceback.format_exc()
             if started:
@@ -162,26 +169,46 @@ class FastStreamAPI:
             await send({"type": "lifespan.shutdown.complete"})
 
     @asynccontextmanager
-    async def _lifespan_context(self, application: Self) -> AsyncIterator[None]:
-        if self._asyncapi_config is not None:
+    async def _lifespan_context(self, application: Self) -> AsyncGenerator[None, None]:
+        if self._asyncapi_config is not None and not self._asyncapi_router_added:
             asyncapi_router = AsyncAPIRouter(
                 brokers=self._brokers,
                 config=self._asyncapi_config,
-                schema=self._startable_application.schema,
+                schema=self.schema,
             )
             self._application.include_router(asyncapi_router)
+            self._asyncapi_router_added = True
 
-        started_brokers: list[BrokerUsecase[Any, Any]] = []
-
-        try:
+        async with AsyncExitStack() as stack:
             for broker in self._brokers:
+                self._patch_broker(broker)
+                stack.push_async_callback(broker.stop)
                 await self._connect_broker(broker)
-                started_brokers.append(broker)
 
             yield None
-        finally:
-            for started_broker in started_brokers:
-                await started_broker.stop()
+
+    def _patch_broker(self, broker: BrokerUsecase[Any, Any]) -> None:
+        if broker not in self._patched_brokers:
+            broker.config.add_middleware(_BackgroundMiddleware)
+            self._patched_brokers.append(broker)
+
+        for subscriber in broker.subscribers:
+            if subscriber in self._patched_subscribers:
+                continue
+
+            dependencies = (
+                *broker.config.broker_dependencies,
+                *subscriber._call_options.dependencies,
+            )
+            subscriber._call_decorators = (
+                _subscriber_compatibility_wrapper(
+                    config=self._config,
+                    context=broker.context,
+                    dependencies=dependencies,  # type: ignore[arg-type]
+                ),
+                *subscriber._call_decorators,
+            )
+            self._patched_subscribers.add(subscriber)
 
     async def _connect_broker(self, broker: BrokerUsecase[Any, Any]) -> None:
         try:

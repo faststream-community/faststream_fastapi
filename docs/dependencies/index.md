@@ -126,3 +126,13 @@ application.dependency_overrides[dep] = mock_dep
 
 FastStreamAPI(broker, application=application)
 ```
+
+## Streaming and file replies
+
+A subscriber's `StreamingResponse` or `FileResponse` is buffered into a single
+broker message. The reply body is limited to 1 MiB by default. If a chunk would
+exceed the limit, the subscriber raises `ValueError` and no reply is published.
+
+Set `FastStreamAPI(..., max_streaming_reply_size=...)` to adjust the limit in
+bytes for your broker. Allow room for any headers and protocol overhead that
+count toward the broker's message-size limit.

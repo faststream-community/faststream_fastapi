@@ -15,7 +15,7 @@ class NatsAbstractTestCaseConfig(AbstractTestCaseConfig[NatsBroker]):
         apply_types: bool = False,
         **kwargs: Any,
     ) -> NatsBroker:
-        return NatsBroker(apply_types=apply_types, **kwargs)
+        return NatsBroker(*args, apply_types=apply_types, **kwargs)
 
 
 class NatsAbstractInMemoryTestCaseConfig(NatsAbstractTestCaseConfig):
