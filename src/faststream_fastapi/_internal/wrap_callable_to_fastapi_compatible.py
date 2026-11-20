@@ -1,8 +1,9 @@
 import inspect
-from collections.abc import Awaitable, Callable, Iterable
+from asyncio import Event
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
 from contextlib import AsyncExitStack
+from copy import copy
 from functools import wraps
-from itertools import dropwhile
 from typing import Any, ParamSpec, TypeVar
 
 from fast_depends.dependencies import Dependant
@@ -12,6 +13,10 @@ from fastapi.routing import run_endpoint_function, serialize_response
 from faststream.exceptions import SetupError
 from faststream.message import StreamMessage as NativeMessage
 from faststream.response import Response, ensure_response
+from starlette.datastructures import Headers
+from starlette.responses import Response as HTTPResponse
+from starlette.responses import StreamingResponse
+from starlette.types import Message, Scope
 
 from faststream_fastapi._internal.config import Config
 from faststream_fastapi._internal.fastapi_compat import (
@@ -25,6 +30,7 @@ from faststream_fastapi._internal.get_dependant import (
     get_fastapi_native_dependant,
     has_forbidden_types,
     is_faststream_decorated,
+    iter_dependants,
     mark_faststream_decorated,
 )
 from faststream_fastapi._internal.replace_context import replace_context
@@ -77,44 +83,42 @@ def build_faststream_to_fastapi_parser(
         config=config,
     )
 
-    dependencies_names = tuple(i.name for i in dependent.dependencies)
-
-    first_arg = next(
-        dropwhile(
-            lambda i: i in dependencies_names,
-            inspect.signature(dependent.call).parameters,
-        ),
-        None,
-    )
+    first_arg = _get_scalar_payload_alias(dependent)
 
     async def parsed_consumer(message: NativeMessage[Any]) -> Any:
         body = await message.decode()
 
-        fastapi_body: dict[str, Any] | list[Any]
-        stream_message: StreamMessage
-        if first_arg is not None:
-            if isinstance(body, dict):
-                path = fastapi_body = body or {}
-            elif isinstance(body, list):
-                fastapi_body, path = body, {}
-            else:
-                path = fastapi_body = {first_arg: body}
-
-            stream_message = StreamMessage(
-                body=fastapi_body,
-                headers={"context__": context, **message.headers},
-                path={**path, **message.path},
-            )
-
+        if isinstance(body, dict):
+            path = body
+        elif first_arg is not None and not isinstance(body, list):
+            path = {first_arg: body}
         else:
-            stream_message = StreamMessage(
-                body={},
-                headers={"context__": context},
-                path={},
-            )
+            path = {}
+
+        stream_message = StreamMessage(
+            body=body,
+            headers=message.headers,
+            path={**path, **message.path},
+            raw_body=message.body if isinstance(message.body, bytes) else None,
+        )
+        stream_message.scope["faststream_context__"] = context
+        stream_message.scope["faststream_config__"] = config
         return await consume(stream_message, message)
 
     return parsed_consumer
+
+
+def _get_scalar_payload_alias(dependant: FastAPIDependant) -> str | None:
+    for dependency in iter_dependants(dependant):
+        fields = {
+            field.name: field.alias
+            for field in (*dependency.query_params, *dependency.path_params)
+        }
+        if fields and dependency.call is not None:
+            for name in inspect.signature(dependency.call).parameters:
+                if name in fields:
+                    return fields[name]
+    return None
 
 
 def make_fastapi_execution(
@@ -146,7 +150,7 @@ def make_fastapi_execution(
                 request.scope["fastapi_astack"] = stack
 
             request.scope["app"] = config.application
-            request.scope["state"] = config.asgi_state
+            request.scope["state"] = config.asgi_state.copy()
 
             solved_result = await solve_faststream_dependency(
                 request=request,
@@ -158,7 +162,7 @@ def make_fastapi_execution(
             raw_message.background = solved_result.background_tasks  # type: ignore[attr-defined]
 
             if solved_result.errors:
-                raise_fastapi_validation_error(solved_result.errors, request._body)  # type: ignore[arg-type]
+                raise_fastapi_validation_error(solved_result.errors, request.decoded_body)
 
             function_result = await run_endpoint_function(
                 dependant=dependent,
@@ -166,7 +170,22 @@ def make_fastapi_execution(
                 is_coroutine=is_coroutine,
             )
 
+            if isinstance(function_result, HTTPResponse):
+                raw_message.background = (  # type: ignore[attr-defined]
+                    function_result.background or solved_result.background_tasks
+                )
+                return await _to_broker_response(
+                    function_result,
+                    request.scope,
+                    config.max_streaming_reply_size,
+                )
+
             response = ensure_response(function_result)
+            if solved_result.response.raw_headers:
+                response.headers = {
+                    **_broker_headers(solved_result.response.headers),
+                    **response.headers,
+                }
 
             response.body = await serialize_response(
                 response_content=response.body,
@@ -178,3 +197,61 @@ def make_fastapi_execution(
         raise AssertionError("unreachable")
 
     return app
+
+
+async def _to_broker_response(
+    response: HTTPResponse,
+    scope: Scope,
+    max_streaming_reply_size: int,
+) -> Response:
+    if hasattr(response, "body"):
+        return Response(bytes(response.body), headers=_broker_headers(response.headers))
+
+    # A broker reply carries one payload. Collect the ASGI stream before publishing it.
+    payload = bytearray()
+    headers: dict[str, str] = {}
+    finished = Event()
+
+    async def receive() -> Message:
+        await finished.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: Message) -> None:
+        nonlocal headers
+        if message["type"] == "http.response.start":
+            headers = _broker_headers(Headers(raw=message["headers"]))
+        elif message["type"] == "http.response.body":
+            chunk = message.get("body", b"")
+            chunk_size = chunk.nbytes if isinstance(chunk, memoryview) else len(chunk)
+            if len(payload) + chunk_size > max_streaming_reply_size:
+                msg = f"Broker reply exceeds the {max_streaming_reply_size}-byte streaming limit."
+                raise ValueError(msg)
+            payload.extend(chunk)
+            if not message.get("more_body", False):
+                finished.set()
+
+    # The broker middleware runs the original background task after processing.
+    stream = copy(response)
+    stream.background = None
+    try:
+        await stream({**scope, "asgi": {"version": "3.0", "spec_version": "2.4"}}, receive, send)
+    finally:
+        if isinstance(stream, StreamingResponse) and isinstance(
+            stream.body_iterator,
+            AsyncGenerator,
+        ):
+            await stream.body_iterator.aclose()
+    return Response(bytes(payload), headers=headers)
+
+
+def _broker_headers(headers: Headers) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for name, value in headers.items():
+        if name not in result:
+            result[name] = value
+        elif name == "set-cookie":
+            msg = "Broker response headers cannot represent multiple Set-Cookie values."
+            raise ValueError(msg)
+        else:
+            result[name] += ", " + value
+    return result

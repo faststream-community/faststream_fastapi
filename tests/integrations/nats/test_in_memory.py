@@ -46,22 +46,17 @@ class TestInMemoryNats(NatsAbstractInMemoryTestCaseConfig, BaseInMemoryTestCaseC
         assert event.is_set()
         mock.assert_called_once_with(["hello"])
 
-    async def test_path(self, queue: str) -> None:
+    async def test_path(self, queue: str, mock: MagicMock) -> None:
         broker = self.get_broker()
 
-        args, kwargs = self.get_subscriber_params(f"{queue}.{{name}}")
-
-        @broker.subscriber(*args, **kwargs)  # type: ignore[untyped-decorator]
-        async def subscriber_handler(name: str) -> str:
-            return name
+        @broker.subscriber(f"{queue}.{{name}}")
+        async def subscriber_handler(name: str) -> None:
+            mock(name)
 
         async with (
             self.patch_broker(broker) as broker,
             self.get_test_client(broker),
         ):
-            r = await broker.request(
-                "hi",
-                f"{queue}.john",
-                timeout=0.5,
-            )
-            assert await r.decode() == "john"
+            await broker.publish("hi", f"{queue}.john")
+
+        mock.assert_called_once_with("john")

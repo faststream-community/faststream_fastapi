@@ -23,3 +23,17 @@ def test_get_fastapi_dependant_has_faststream_fields() -> None:
     assert dependant.model.__name__ == "handler"
     assert dependant.custom_fields == {}
     assert [field.field_name for field in dependant.flat_params] == ["message"]
+
+
+def test_nested_dependency_fields() -> None:
+    def nested(value: int) -> int:
+        return value
+
+    def dependency(value: int = Depends(nested)) -> int:
+        return value
+
+    async def handler(value: int = Depends(dependency)) -> int:
+        return value
+
+    dependant = get_fastapi_dependant(handler, ())
+    assert [field.field_name for field in dependant.flat_params] == ["value"]

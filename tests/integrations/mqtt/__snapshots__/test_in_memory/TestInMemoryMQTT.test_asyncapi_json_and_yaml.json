@@ -1,0 +1,81 @@
+{
+  "asyncapi": "3.0.0",
+  "channels": {
+    "asyncapi.input:Handler": {
+      "address": "asyncapi.input",
+      "bindings": {
+        "mqtt": {
+          "bindingVersion": "0.2.0",
+          "qos": 0,
+          "retain": false,
+          "topic": "asyncapi.input"
+        }
+      },
+      "messages": {
+        "SubscribeMessage": {
+          "$ref": "#/components/messages/asyncapi.input:Handler:SubscribeMessage"
+        }
+      },
+      "servers": [
+        {
+          "$ref": "#/servers/development"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "asyncapi.input:Handler:SubscribeMessage": {
+        "correlationId": {
+          "location": "$message.header#/correlation_id"
+        },
+        "payload": {
+          "$ref": "#/components/schemas/Handler:Message:Payload"
+        },
+        "title": "asyncapi.input:Handler:SubscribeMessage"
+      }
+    },
+    "schemas": {
+      "Handler:Message:Payload": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Handler:Message:Payload",
+        "type": "object"
+      }
+    }
+  },
+  "defaultContentType": "application/json",
+  "info": {
+    "title": "FastStream",
+    "version": "0.1.0"
+  },
+  "operations": {
+    "asyncapi.input:HandlerSubscribe": {
+      "action": "receive",
+      "bindings": {
+        "mqtt": {
+          "bindingVersion": "0.2.0",
+          "qos": 0,
+          "retain": false
+        }
+      },
+      "channel": {
+        "$ref": "#/channels/asyncapi.input:Handler"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/asyncapi.input:Handler/messages/SubscribeMessage"
+        }
+      ]
+    }
+  },
+  "servers": {
+    "development": {
+      "host": "localhost:1883",
+      "pathname": "",
+      "protocol": "mqtt",
+      "protocolVersion": "5.0"
+    }
+  }
+}

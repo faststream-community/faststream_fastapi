@@ -1,5 +1,5 @@
 import inspect
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
 from typing import Annotated, Any, Final, cast, get_args, get_origin
 
@@ -60,10 +60,11 @@ def get_fastapi_native_dependant(
 
 def _patch_fastapi_dependent(dependant: Dependant) -> _FastStreamDependant:
     dependant = _extend_fastapi_dependant(dependant)
-    params = dependant.query_params + dependant.body_params
-
-    for d in dependant.dependencies:
-        params.extend(d.query_params + d.body_params)
+    params = [
+        field
+        for dependency in iter_dependants(dependant)
+        for field in (*dependency.query_params, *dependency.body_params)
+    ]
 
     params_unique = {}
 
@@ -145,6 +146,12 @@ def _patch_fastapi_dependent(dependant: Dependant) -> _FastStreamDependant:
     ]
 
     return dependant
+
+
+def iter_dependants(dependant: Dependant) -> Iterator[Dependant]:
+    yield dependant
+    for dependency in dependant.dependencies:
+        yield from iter_dependants(dependency)
 
 
 def has_forbidden_types(  # noqa: C901

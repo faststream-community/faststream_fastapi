@@ -15,7 +15,7 @@ class KafkaAbstractTestCaseConfig(AbstractTestCaseConfig[KafkaBroker]):
         apply_types: bool = False,
         **kwargs: Any,
     ) -> KafkaBroker:
-        return KafkaBroker(apply_types=apply_types, **kwargs)
+        return KafkaBroker(*args, apply_types=apply_types, **kwargs)
 
 
 class KafkaAbstractInMemoryTestCaseConfig(KafkaAbstractTestCaseConfig):

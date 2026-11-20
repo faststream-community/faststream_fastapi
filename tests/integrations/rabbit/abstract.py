@@ -15,7 +15,7 @@ class RabbitAbstractTestCaseConfig(AbstractTestCaseConfig[RabbitBroker]):
         apply_types: bool = False,
         **kwargs: Any,
     ) -> RabbitBroker:
-        return RabbitBroker(apply_types=apply_types, **kwargs)
+        return RabbitBroker(*args, apply_types=apply_types, **kwargs)
 
 
 class RabbitAbstractInMemoryTestCaseConfig(RabbitAbstractTestCaseConfig):

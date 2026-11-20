@@ -1,12 +1,14 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Never
 
 from fastapi import __version__ as FASTAPI_VERSION  # noqa: N812
 from fastapi.dependencies.models import Dependant
 from fastapi.dependencies.utils import solve_dependencies
-from fastapi.requests import Request
 from starlette.background import BackgroundTasks
-from typing_extensions import Never
+from starlette.responses import Response
+
+from faststream_fastapi._internal.get_dependant import iter_dependants
+from faststream_fastapi.stream_message import StreamMessage
 
 major, minor, patch, *_ = FASTAPI_VERSION.split(".")
 
@@ -47,6 +49,7 @@ class SolvedDependency:
     values: dict[str, Any]
     errors: list[Any]
     background_tasks: BackgroundTasks | None
+    response: Response
 
 
 if FASTAPI_V128:
@@ -54,7 +57,7 @@ if FASTAPI_V128:
 
     def raise_fastapi_validation_error(
         errors: list[Any],
-        body: dict[str, Any],
+        body: Any,
     ) -> Never:
         raise RequestValidationError(errors, body=body)
 
@@ -64,7 +67,7 @@ elif FASTAPI_V2:
 
     def raise_fastapi_validation_error(
         errors: list[Any],
-        body: dict[str, Any],
+        body: Any,
     ) -> Never:
         raise RequestValidationError(_normalize_errors(errors), body=body)
 
@@ -80,7 +83,7 @@ else:
 
     def raise_fastapi_validation_error(
         errors: list[Any],
-        body: dict[str, Any],
+        body: Any,
     ) -> Never:
         raise RequestValidationError(errors, ROUTER_VALIDATION_ERROR_MODEL)  # type: ignore[call-arg]
 
@@ -90,17 +93,22 @@ if FASTAPI_v102_3:
         create_model_field as create_response_field,
     )
 
-    extra = {"embed_body_fields": False} if FASTAPI_v102_4 else {}
-
     async def solve_faststream_dependency(
-        request: Request,
+        request: StreamMessage,
         dependant: Dependant,
         dependency_overrides_provider: Any | None,
         **kwargs: Any,
     ) -> SolvedDependency:
+        body_fields = [
+            field for dependency in iter_dependants(dependant) for field in dependency.body_params
+        ]
+        embed_body_fields = len({field.name for field in body_fields}) > 1 or any(
+            getattr(field.field_info, "embed", False) for field in body_fields
+        )
+        extra = {"embed_body_fields": embed_body_fields} if FASTAPI_v102_4 else {}
         solved_result = await solve_dependencies(
             request=request,
-            body=request._body,
+            body=request.decoded_body,
             dependant=dependant,
             dependency_overrides_provider=dependency_overrides_provider,
             **extra,  # type: ignore[arg-type]
@@ -116,6 +124,7 @@ if FASTAPI_v102_3:
             values=values,
             errors=errors,
             background_tasks=background,
+            response=solved_result.response,
         )
 
 else:
@@ -124,14 +133,14 @@ else:
     )
 
     async def solve_faststream_dependency(
-        request: Request,
+        request: StreamMessage,
         dependant: Dependant,
         dependency_overrides_provider: Any | None,
         **kwargs: Any,
     ) -> SolvedDependency:
         solved_result = await solve_dependencies(
             request=request,
-            body=request._body,
+            body=request.decoded_body,
             dependant=dependant,
             dependency_overrides_provider=dependency_overrides_provider,
             **kwargs,
@@ -141,7 +150,7 @@ else:
             values,
             errors,
             background,
-            _response,
+            response,
             _dependency_cache,
         ) = solved_result  # type: ignore[misc]
 
@@ -149,4 +158,5 @@ else:
             values=values,  # type: ignore[has-type]
             errors=errors,  # type: ignore[has-type]
             background_tasks=background,  # type: ignore[has-type]
+            response=response,  # type: ignore[has-type]
         )

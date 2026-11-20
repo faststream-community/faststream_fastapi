@@ -1,0 +1,69 @@
+{
+  "asyncapi": "3.0.0",
+  "channels": {
+    "asyncapi.input:Handler": {
+      "address": "asyncapi.input",
+      "bindings": {
+        "nats": {
+          "bindingVersion": "custom",
+          "subject": "asyncapi.input"
+        }
+      },
+      "messages": {
+        "SubscribeMessage": {
+          "$ref": "#/components/messages/asyncapi.input:Handler:SubscribeMessage"
+        }
+      },
+      "servers": [
+        {
+          "$ref": "#/servers/development"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "asyncapi.input:Handler:SubscribeMessage": {
+        "correlationId": {
+          "location": "$message.header#/correlation_id"
+        },
+        "payload": {
+          "$ref": "#/components/schemas/Handler:Message:Payload"
+        },
+        "title": "asyncapi.input:Handler:SubscribeMessage"
+      }
+    },
+    "schemas": {
+      "Handler:Message:Payload": {
+        "title": "Handler:Message:Payload",
+        "type": "integer"
+      }
+    }
+  },
+  "defaultContentType": "application/json",
+  "info": {
+    "title": "FastStream",
+    "version": "0.1.0"
+  },
+  "operations": {
+    "asyncapi.input:HandlerSubscribe": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/asyncapi.input:Handler"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/asyncapi.input:Handler/messages/SubscribeMessage"
+        }
+      ]
+    }
+  },
+  "servers": {
+    "development": {
+      "host": "localhost:4222",
+      "pathname": "",
+      "protocol": "nats",
+      "protocolVersion": "custom"
+    }
+  }
+}

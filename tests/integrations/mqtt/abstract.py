@@ -16,7 +16,7 @@ class MQTTAbstractTestCaseConfig(AbstractTestCaseConfig[MQTTBroker]):
         apply_types: bool = False,
         **kwargs: Any,
     ) -> MQTTBroker:
-        return MQTTBroker(apply_types=apply_types, version="5.0", **kwargs)
+        return MQTTBroker(*args, apply_types=apply_types, version="5.0", **kwargs)
 
 
 class MQTTAbstractInMemoryTestCaseConfig(MQTTAbstractTestCaseConfig):

@@ -1,23 +1,17 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from threading import RLock
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.datastructures import State
 
-
-class ConfigAsgiStateError(ValueError):
-    def __str__(self) -> str:
-        return "ASGI state already is set"
+from faststream_fastapi._internal.fs_re_exports.context import ContextRepo
 
 
 @dataclass
 class Config:
     application: FastAPI
     dependency_overrides_provider: Any | None
-    asgi_state: State | None = None
-
-    def set_asgi_state(self, asgi_state: State) -> None:
-        if self.asgi_state is not None:
-            raise ConfigAsgiStateError  # pragma: no cover
-
-        self.asgi_state = asgi_state
+    context: ContextRepo
+    max_streaming_reply_size: int
+    context_init_lock: RLock = field(default_factory=RLock)
+    asgi_state: dict[str, Any] = field(default_factory=dict)

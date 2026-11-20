@@ -3,9 +3,11 @@ from typing import cast
 
 from fastapi.background import BackgroundTasks
 from faststream.middlewares import BaseMiddleware
+from typing_extensions import override
 
 
 class _BackgroundMiddleware(BaseMiddleware):
+    @override
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None = None,

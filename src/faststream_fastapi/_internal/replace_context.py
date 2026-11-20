@@ -1,5 +1,6 @@
 import functools
 import inspect
+import sys
 from collections.abc import Callable, Mapping
 from typing import (
     Annotated,
@@ -9,10 +10,9 @@ from typing import (
     cast,
     get_args,
     get_origin,
-    get_type_hints,
 )
 
-from fastapi.dependencies.utils import get_typed_signature
+from fastapi.dependencies.utils import get_typed_annotation
 from faststream._internal.context import Context as ContextCls
 
 from faststream_fastapi import Context as PluginContext
@@ -24,30 +24,52 @@ T_HandlerReturn = TypeVar("T_HandlerReturn")
 def replace_context(
     func: Callable[P_HandlerParams, T_HandlerReturn],
 ) -> Callable[P_HandlerParams, T_HandlerReturn]:
-    if inspect.iscoroutinefunction(func):
+    annotation_source: Any = func
+    while isinstance(annotation_source, functools.partial):
+        annotation_source = annotation_source.func
+
+    if not inspect.isroutine(annotation_source) and not inspect.isclass(annotation_source):
+        annotation_source = annotation_source.__call__
+
+    if inspect.iscoroutinefunction(annotation_source):
 
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return await func(*args, **kwargs)
+            return await cast(Callable[..., Any], func)(*args, **kwargs)
     else:
 
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
 
-    endpoint_signature = get_typed_signature(func)
-    new_params = get_new_parameters(endpoint_signature.parameters)
-    new_annotations = get_new_annotations(get_type_hints(func, include_extras=True))
+    # The callable's effective signature may have been supplied by a decorator.
+    try:
+        signature = inspect.signature(func, eval_str=True)
+    except NameError:
+        signature = inspect.signature(func)
 
-    wrapper.__name__ = func.__name__
-    wrapper.__qualname__ = func.__qualname__
+    source = inspect.unwrap(annotation_source)
+    module = sys.modules.get(getattr(source, "__module__", ""))
+    globalns = getattr(source, "__globals__", vars(module) if module is not None else {})
+    parameters = {
+        name: param.replace(annotation=get_typed_annotation(param.annotation, globalns))
+        for name, param in signature.parameters.items()
+    }
+    new_params = get_new_parameters(parameters)
+    new_annotations = {
+        param.name: param.annotation
+        for param in new_params
+        if param.annotation is not inspect.Parameter.empty
+    }
+    if signature.return_annotation is not inspect.Signature.empty:
+        new_annotations["return"] = signature.return_annotation
+
+    wrapper.__name__ = getattr(func, "__name__", type(func).__name__)
+    wrapper.__qualname__ = getattr(func, "__qualname__", wrapper.__name__)
     wrapper.__doc__ = func.__doc__
-    wrapper.__module__ = func.__module__
+    wrapper.__module__ = getattr(func, "__module__", getattr(source, "__module__", __name__))
     wrapper.__annotations__ = new_annotations
-    wrapper.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
-        parameters=new_params,
-        return_annotation=endpoint_signature.return_annotation,
-    )
+    wrapper.__signature__ = signature.replace(parameters=new_params)  # type: ignore[attr-defined]
 
     return cast(Callable[P_HandlerParams, T_HandlerReturn], wrapper)
 
@@ -82,18 +104,6 @@ def get_new_parameters(
             new_params.append(param)
 
     return new_params
-
-
-def get_new_annotations(type_hints: Mapping[str, Any]) -> dict[str, Any]:
-    new_annotations = {}
-
-    for param_name, type_hint in type_hints.items():
-        if get_origin(type_hint) is Annotated:
-            new_annotations[param_name] = replace_annotated(type_hint, param_name)
-        else:
-            new_annotations[param_name] = type_hint
-
-    return new_annotations
 
 
 def replace_annotated(type_hint: Any, parameter_name: str) -> Any:

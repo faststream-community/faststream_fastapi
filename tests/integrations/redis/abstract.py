@@ -15,7 +15,7 @@ class RedisAbstractTestCaseConfig(AbstractTestCaseConfig[RedisBroker]):
         apply_types: bool = False,
         **kwargs: Any,
     ) -> RedisBroker:
-        return RedisBroker(apply_types=apply_types, **kwargs)
+        return RedisBroker(*args, apply_types=apply_types, **kwargs)
 
 
 class RedisAbstractInMemoryTestCaseConfig(RedisAbstractTestCaseConfig):

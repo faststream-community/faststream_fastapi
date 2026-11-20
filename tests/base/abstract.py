@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any, ClassVar, Generic, TypeVar, overload
 
@@ -77,7 +77,8 @@ class AbstractTestCaseConfig(ABC, Generic[_BrokerT]):
         context: ContextRepo | None = None,
         specification: SpecificationFactory | None = None,
         asyncapi_path: str | AsyncAPIConfig | None = None,
-    ) -> AsyncIterator[AsyncClient]:
+        safe_connection: bool = True,
+    ) -> AsyncGenerator[AsyncClient]:
         if application is None:
             application = FastAPI()
 
@@ -87,6 +88,7 @@ class AbstractTestCaseConfig(ABC, Generic[_BrokerT]):
             context=context,
             specification=specification,
             asyncapi_path=asyncapi_path,
+            safe_connection=safe_connection,
         )
         async with (
             LifespanManager(faststream_api) as lifespan_manager,

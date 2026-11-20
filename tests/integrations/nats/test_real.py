@@ -1,9 +1,11 @@
 import asyncio
+import logging
 from asyncio import Event
 from unittest.mock import MagicMock
 
 import pytest
 from faststream.nats import JStream, NatsBroker, PullSub
+from nats.errors import NoServersError
 
 from faststream_fastapi import FastStreamAPI
 from tests.base.real import BaseRealTestCaseConfig
@@ -13,6 +15,32 @@ from tests.integrations.nats.abstract import NatsAbstractTestCaseConfig
 @pytest.mark.connected()
 @pytest.mark.nats()
 class TestRealNats(NatsAbstractTestCaseConfig, BaseRealTestCaseConfig[NatsBroker]):
+    async def test_logs_nats_connection_failure(
+        self,
+        mock: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+        unused_tcp_port: int,
+    ) -> None:
+        broker = self.get_broker(
+            servers=f"nats://127.0.0.1:{unused_tcp_port}",
+            max_reconnect_attempts=1,
+            reconnect_time_wait=0,
+        )
+        app = FastStreamAPI(broker, application=mock, safe_connection=False)
+        try:
+            with caplog.at_level(logging.WARNING, logger="faststream_fastapi.faststream_api"):
+                await asyncio.wait_for(app._connect_broker(broker), timeout=self.timeout)
+        finally:
+            await broker.stop()
+
+        assert any(
+            record.name == "faststream_fastapi.faststream_api"
+            and record.levelno >= logging.WARNING
+            and record.exc_info
+            and isinstance(record.exc_info[1], NoServersError)
+            for record in caplog.records
+        )
+
     async def test_path(
         self,
         queue: str,
@@ -73,14 +101,3 @@ class TestRealNats(NatsAbstractTestCaseConfig, BaseRealTestCaseConfig[NatsBroker
 
         assert event.is_set()
         mock.assert_called_once_with(["hello"])
-
-    async def test_conneciton_safe_false(self, mock: MagicMock) -> None:
-        broker = self.get_broker("nats://localhost:6767")
-
-        app = FastStreamAPI(broker, application=mock)
-
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait(
-                [asyncio.create_task(app._connect_broker(broker))],
-                timeout=self.timeout,
-            )
