@@ -84,7 +84,7 @@ testing = [
     "pytest-timeout==2.4.0",
     "pytest-cov==7.1.0",
     "covdefaults==2.3.0",
-    "syrupy==6.1.1",
+    "syrupy==7.0.2",
     { include-group = "testing-dependencies" },
 ]
 testing-dependencies = [
