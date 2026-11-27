@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'Lancetnik' &&
       (github.event.action == 'opened' || github.event.action == 'reopened')
     steps:
       - name: Send Telegram notification for new issue or opened pull request
